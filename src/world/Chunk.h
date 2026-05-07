@@ -35,7 +35,7 @@ public:
     void clearDirty();
 
     std::vector<float> buildMesh(
-        const std::array<BlockRenderInfo, 4>& renderInfo,
+        const std::array<BlockRenderInfo, 5>& renderInfo,
         const glm::vec3& worldPosition,
         const BlockLookupFunction& blockLookup
     ) const;
@@ -48,7 +48,7 @@ private:
     float getTextureIndexForFace(
         uint16_t blockId,
         int face,
-        const std::array<BlockRenderInfo, 4>& renderInfo
+        const std::array<BlockRenderInfo, 5>& renderInfo
     ) const;
 
     void addFace(

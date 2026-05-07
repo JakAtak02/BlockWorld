@@ -28,12 +28,25 @@ void Player::update(const PlayerInputState& input, float deltaTime)
 
     m_camera.processMouseMovement(input.lookDeltaX, input.lookDeltaY);
 
-    // Rising edge detection for block breaking.
+    if (input.selectSlot1Pressed)
+        m_selectedBlockId = 1;
+
+    if (input.selectSlot2Pressed)
+        m_selectedBlockId = 2;
+
+    if (input.selectSlot3Pressed)
+        m_selectedBlockId = 3;
+
+    if (input.selectSlot4Pressed)
+        m_selectedBlockId = 4;
+
+    if (input.selectSlot5Pressed)
+        m_selectedBlockId = 5;
+
     m_breakBlockRequested =
         input.breakBlockPressed &&
         !m_breakMousePreviouslyPressed;
 
-    // Rising edge detection for block placing.
     m_placeBlockRequested =
         input.placeBlockPressed &&
         !m_placeMousePreviouslyPressed;
@@ -50,6 +63,57 @@ bool Player::wantsToBreakBlock() const
 bool Player::wantsToPlaceBlock() const
 {
     return m_placeBlockRequested;
+}
+
+uint16_t Player::getSelectedBlockId() const
+{
+    return m_selectedBlockId;
+}
+
+bool Player::wouldBlockOverlapPlayer(
+    const glm::ivec3& blockPosition
+) const
+{
+    glm::vec3 playerPosition =
+        m_camera.getPosition();
+
+    float playerHalfWidth =
+        m_playerWidth * 0.5f;
+
+    glm::vec3 playerMin(
+        playerPosition.x - playerHalfWidth,
+        playerPosition.y,
+        playerPosition.z - playerHalfWidth
+    );
+
+    glm::vec3 playerMax(
+        playerPosition.x + playerHalfWidth,
+        playerPosition.y + m_playerHeight,
+        playerPosition.z + playerHalfWidth
+    );
+
+    glm::vec3 blockMin(
+        static_cast<float>(blockPosition.x),
+        static_cast<float>(blockPosition.y),
+        static_cast<float>(blockPosition.z)
+    );
+
+    glm::vec3 blockMax =
+        blockMin + glm::vec3(1.0f);
+
+    bool overlapX =
+        playerMin.x < blockMax.x &&
+        playerMax.x > blockMin.x;
+
+    bool overlapY =
+        playerMin.y < blockMax.y &&
+        playerMax.y > blockMin.y;
+
+    bool overlapZ =
+        playerMin.z < blockMax.z &&
+        playerMax.z > blockMin.z;
+
+    return overlapX && overlapY && overlapZ;
 }
 
 Camera& Player::getCamera()

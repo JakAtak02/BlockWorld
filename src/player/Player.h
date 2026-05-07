@@ -2,6 +2,9 @@
 
 #include "core/Camera.h"
 
+#include <cstdint>
+#include <glm/glm.hpp>
+
 struct PlayerInputState
 {
     bool moveForward = false;
@@ -13,6 +16,12 @@ struct PlayerInputState
 
     bool breakBlockPressed = false;
     bool placeBlockPressed = false;
+
+    bool selectSlot1Pressed = false;
+    bool selectSlot2Pressed = false;
+    bool selectSlot3Pressed = false;
+    bool selectSlot4Pressed = false;
+    bool selectSlot5Pressed = false;
 
     float lookDeltaX = 0.0f;
     float lookDeltaY = 0.0f;
@@ -28,6 +37,12 @@ public:
     bool wantsToBreakBlock() const;
     bool wantsToPlaceBlock() const;
 
+    uint16_t getSelectedBlockId() const;
+
+    bool wouldBlockOverlapPlayer(
+        const glm::ivec3& blockPosition
+    ) const;
+
     Camera& getCamera();
     const Camera& getCamera() const;
 
@@ -39,6 +54,11 @@ private:
 
     bool m_breakMousePreviouslyPressed = false;
     bool m_placeMousePreviouslyPressed = false;
+
+    uint16_t m_selectedBlockId = 1;
+
+    float m_playerWidth = 0.6f;
+    float m_playerHeight = 1.8f;
 
     float m_moveSpeed = 5.0f;
 };

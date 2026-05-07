@@ -98,7 +98,7 @@ void Chunk::generateTerrain(int chunkX, int chunkZ)
 }
 
 std::vector<float> Chunk::buildMesh(
-    const std::array<BlockRenderInfo, 4>& renderInfo,
+    const std::array<BlockRenderInfo, 5>& renderInfo,
     const glm::vec3& worldPosition,
     const BlockLookupFunction& blockLookup
 ) const
@@ -120,7 +120,7 @@ std::vector<float> Chunk::buildMesh(
 float Chunk::getTextureIndexForFace(
     uint16_t blockId,
     int face,
-    const std::array<BlockRenderInfo, 4>& renderInfo
+    const std::array<BlockRenderInfo, 5>& renderInfo
 ) const
 {
     if (blockId == 0 || blockId > renderInfo.size())

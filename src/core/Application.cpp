@@ -100,13 +100,17 @@ void Application::run()
     if (!registry.loadBlockFromJson("resources/data/textures/blocks/dirt.json")) return;
     if (!registry.loadBlockFromJson("resources/data/textures/blocks/sand.json")) return;
     if (!registry.loadBlockFromJson("resources/data/textures/blocks/grass_block.json")) return;
+    if (!registry.loadBlockFromJson("resources/data/textures/blocks/cobblestone.json")) return;
+
 
     const BlockType* stone = registry.getBlock("blockworld:stone");
     const BlockType* dirt = registry.getBlock("blockworld:dirt");
     const BlockType* sand = registry.getBlock("blockworld:sand");
     const BlockType* grass = registry.getBlock("blockworld:grass_block");
+    const BlockType* cobblestone = registry.getBlock("blockworld:cobblestone");
 
-    if (!stone || !dirt || !sand || !grass)
+
+    if (!stone || !dirt || !sand || !grass || !cobblestone)
     {
         std::cout << "Failed to load blocks." << std::endl;
         return;
@@ -119,18 +123,20 @@ void Application::run()
         "resources/" + dirt->sideTexturePath,
         "resources/" + sand->sideTexturePath,
         "resources/" + grass->topTexturePath,
-        "resources/" + grass->sideTexturePath
+        "resources/" + grass->sideTexturePath,
+        "resources/" + cobblestone->sideTexturePath,
         }))
     {
         return;
     }
 
-    std::array<BlockRenderInfo, 4> renderInfo;
+    std::array<BlockRenderInfo, 5> renderInfo;
 
     renderInfo[0] = { 0.0f, 0.0f, 0.0f };
     renderInfo[1] = { 1.0f, 1.0f, 1.0f };
     renderInfo[2] = { 4.0f, 3.0f, 1.0f };
     renderInfo[3] = { 2.0f, 2.0f, 2.0f };
+    renderInfo[4] = { 5.0f, 5.0f, 5.0f };
 
     World world(renderInfo);
 
@@ -287,6 +293,21 @@ void Application::run()
         playerInput.placeBlockPressed =
             glfwGetMouseButton(nativeWindow, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
 
+        playerInput.selectSlot1Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_1) == GLFW_PRESS;
+
+        playerInput.selectSlot2Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_2) == GLFW_PRESS;
+
+        playerInput.selectSlot3Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_3) == GLFW_PRESS;
+
+        playerInput.selectSlot4Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_4) == GLFW_PRESS;
+
+        playerInput.selectSlot5Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_5) == GLFW_PRESS;
+
         double mouseX;
         double mouseY;
 
@@ -350,12 +371,16 @@ void Application::run()
 
             if (player.wantsToPlaceBlock())
             {
-                world.setBlock(
-                    selectedBlock.previousBlockPosition.x,
-                    selectedBlock.previousBlockPosition.y,
-                    selectedBlock.previousBlockPosition.z,
-                    1
-                );
+                if (!player.wouldBlockOverlapPlayer(
+                    selectedBlock.previousBlockPosition))
+                {
+                    world.setBlock(
+                        selectedBlock.previousBlockPosition.x,
+                        selectedBlock.previousBlockPosition.y,
+                        selectedBlock.previousBlockPosition.z,
+                        player.getSelectedBlockId()
+                    );
+                }
             }
         }
 

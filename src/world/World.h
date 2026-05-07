@@ -60,7 +60,7 @@ private:
     };
 
 public:
-    World(const std::array<BlockRenderInfo, 4>& renderInfo);
+    World(const std::array<BlockRenderInfo, 5>& renderInfo);
 
     void update();
 
@@ -94,5 +94,5 @@ private:
 private:
     std::unordered_map<ChunkCoord, ChunkRenderData, ChunkCoordHash> m_chunks;
 
-    std::array<BlockRenderInfo, 4> m_renderInfo;
+    std::array<BlockRenderInfo, 5> m_renderInfo;
 };

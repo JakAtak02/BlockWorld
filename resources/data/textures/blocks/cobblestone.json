@@ -1,0 +1,7 @@
+{
+  "id": "blockworld:cobblestone",
+  "display_name": "Cobblestone",
+  "texture": "assets/textures/blocks/cobblestone.png",
+  "solid": true,
+  "opaque": true
+}
