@@ -4,15 +4,63 @@ void GreedyMeshBuilder::addGreedyFaces(
     const Chunk& chunk,
     std::vector<float>& vertices,
     const std::array<BlockRenderInfo, 4>& renderInfo,
-    const glm::vec3& worldPosition
+    const glm::vec3& worldPosition,
+    const Chunk::BlockLookupFunction& blockLookup
 )
 {
-    addGreedyFaceDirection(chunk, vertices, renderInfo, worldPosition, Face::Back);
-    addGreedyFaceDirection(chunk, vertices, renderInfo, worldPosition, Face::Front);
-    addGreedyFaceDirection(chunk, vertices, renderInfo, worldPosition, Face::Left);
-    addGreedyFaceDirection(chunk, vertices, renderInfo, worldPosition, Face::Right);
-    addGreedyFaceDirection(chunk, vertices, renderInfo, worldPosition, Face::Bottom);
-    addGreedyFaceDirection(chunk, vertices, renderInfo, worldPosition, Face::Top);
+    addGreedyFaceDirection(
+        chunk,
+        vertices,
+        renderInfo,
+        worldPosition,
+        blockLookup,
+        Face::Back
+    );
+
+    addGreedyFaceDirection(
+        chunk,
+        vertices,
+        renderInfo,
+        worldPosition,
+        blockLookup,
+        Face::Front
+    );
+
+    addGreedyFaceDirection(
+        chunk,
+        vertices,
+        renderInfo,
+        worldPosition,
+        blockLookup,
+        Face::Left
+    );
+
+    addGreedyFaceDirection(
+        chunk,
+        vertices,
+        renderInfo,
+        worldPosition,
+        blockLookup,
+        Face::Right
+    );
+
+    addGreedyFaceDirection(
+        chunk,
+        vertices,
+        renderInfo,
+        worldPosition,
+        blockLookup,
+        Face::Bottom
+    );
+
+    addGreedyFaceDirection(
+        chunk,
+        vertices,
+        renderInfo,
+        worldPosition,
+        blockLookup,
+        Face::Top
+    );
 }
 
 void GreedyMeshBuilder::addGreedyFaceDirection(
@@ -20,6 +68,7 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
     std::vector<float>& vertices,
     const std::array<BlockRenderInfo, 4>& renderInfo,
     const glm::vec3& worldPosition,
+    const Chunk::BlockLookupFunction& blockLookup,
     Face face
 )
 {
@@ -32,21 +81,45 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
             for (int a = 0; a < Chunk::SIZE; a++)
             {
                 if (used[a][b])
+                {
                     continue;
+                }
 
-                Cell cell = getCell(chunk, renderInfo, face, slice, a, b);
+                Cell cell = getCell(
+                    chunk,
+                    renderInfo,
+                    worldPosition,
+                    blockLookup,
+                    face,
+                    slice,
+                    a,
+                    b
+                );
 
                 if (!cell.visible)
+                {
                     continue;
+                }
 
                 int width = 1;
 
                 while (a + width < Chunk::SIZE)
                 {
                     if (used[a + width][b])
+                    {
                         break;
+                    }
 
-                    Cell next = getCell(chunk, renderInfo, face, slice, a + width, b);
+                    Cell next = getCell(
+                        chunk,
+                        renderInfo,
+                        worldPosition,
+                        blockLookup,
+                        face,
+                        slice,
+                        a + width,
+                        b
+                    );
 
                     if (!next.visible ||
                         next.blockId != cell.blockId ||
@@ -59,6 +132,7 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
                 }
 
                 int height = 1;
+
                 bool canGrowHeight = true;
 
                 while (b + height < Chunk::SIZE && canGrowHeight)
@@ -71,7 +145,16 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
                             break;
                         }
 
-                        Cell next = getCell(chunk, renderInfo, face, slice, a + da, b + height);
+                        Cell next = getCell(
+                            chunk,
+                            renderInfo,
+                            worldPosition,
+                            blockLookup,
+                            face,
+                            slice,
+                            a + da,
+                            b + height
+                        );
 
                         if (!next.visible ||
                             next.blockId != cell.blockId ||
@@ -83,7 +166,9 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
                     }
 
                     if (canGrowHeight)
+                    {
                         height++;
+                    }
                 }
 
                 for (int db = 0; db < height; db++)
@@ -113,6 +198,8 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
 GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
     const Chunk& chunk,
     const std::array<BlockRenderInfo, 4>& renderInfo,
+    const glm::vec3& worldPosition,
+    const Chunk::BlockLookupFunction& blockLookup,
     Face face,
     int slice,
     int a,
@@ -133,6 +220,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
         x = a;
         y = b;
         z = slice;
+
         neighborX = x;
         neighborY = y;
         neighborZ = z - 1;
@@ -142,6 +230,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
         x = a;
         y = b;
         z = slice;
+
         neighborX = x;
         neighborY = y;
         neighborZ = z + 1;
@@ -151,6 +240,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
         x = slice;
         y = b;
         z = a;
+
         neighborX = x - 1;
         neighborY = y;
         neighborZ = z;
@@ -160,6 +250,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
         x = slice;
         y = b;
         z = a;
+
         neighborX = x + 1;
         neighborY = y;
         neighborZ = z;
@@ -169,6 +260,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
         x = a;
         y = slice;
         z = b;
+
         neighborX = x;
         neighborY = y - 1;
         neighborZ = z;
@@ -178,6 +270,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
         x = a;
         y = slice;
         z = b;
+
         neighborX = x;
         neighborY = y + 1;
         neighborZ = z;
@@ -187,15 +280,38 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
     uint16_t blockId = chunk.getBlock(x, y, z);
 
     if (blockId == 0)
+    {
         return {};
+    }
 
-    if (chunk.getBlock(neighborX, neighborY, neighborZ) != 0)
+    int worldNeighborX =
+        static_cast<int>(worldPosition.x) + neighborX;
+
+    int worldNeighborY =
+        static_cast<int>(worldPosition.y) + neighborY;
+
+    int worldNeighborZ =
+        static_cast<int>(worldPosition.z) + neighborZ;
+
+    if (blockLookup(
+        worldNeighborX,
+        worldNeighborY,
+        worldNeighborZ
+    ) != 0)
+    {
         return {};
+    }
 
     Cell cell;
     cell.visible = true;
     cell.blockId = blockId;
-    cell.textureIndex = getTextureIndexForFace(blockId, face, renderInfo);
+
+    cell.textureIndex =
+        getTextureIndexForFace(
+            blockId,
+            face,
+            renderInfo
+        );
 
     return cell;
 }
@@ -207,15 +323,22 @@ float GreedyMeshBuilder::getTextureIndexForFace(
 )
 {
     if (blockId == 0 || blockId > renderInfo.size())
+    {
         return 0.0f;
+    }
 
-    const BlockRenderInfo& info = renderInfo[blockId - 1];
+    const BlockRenderInfo& info =
+        renderInfo[blockId - 1];
 
     if (face == Face::Bottom)
+    {
         return info.bottomTextureIndex;
+    }
 
     if (face == Face::Top)
+    {
         return info.topTextureIndex;
+    }
 
     return info.sideTextureIndex;
 }
@@ -232,13 +355,22 @@ void GreedyMeshBuilder::addQuad(
     const glm::vec3& worldPosition
 )
 {
-    auto push = [&vertices, textureIndex](float px, float py, float pz, float u, float v)
+    auto push =
+        [&vertices, textureIndex](
+            float px,
+            float py,
+            float pz,
+            float u,
+            float v
+            )
         {
             vertices.push_back(px);
             vertices.push_back(py);
             vertices.push_back(pz);
+
             vertices.push_back(u);
             vertices.push_back(v);
+
             vertices.push_back(textureIndex);
         };
 
@@ -251,16 +383,20 @@ void GreedyMeshBuilder::addQuad(
     {
         float x0 = worldPosition.x + static_cast<float>(a);
         float x1 = x0 + w;
+
         float y0 = worldPosition.y + static_cast<float>(b);
         float y1 = y0 + h;
+
         float z0 = worldPosition.z + static_cast<float>(slice);
 
         push(x0, y0, z0, 0.0f, 0.0f);
         push(x1, y0, z0, w, 0.0f);
         push(x1, y1, z0, w, h);
+
         push(x1, y1, z0, w, h);
         push(x0, y1, z0, 0.0f, h);
         push(x0, y0, z0, 0.0f, 0.0f);
+
         break;
     }
 
@@ -268,84 +404,141 @@ void GreedyMeshBuilder::addQuad(
     {
         float x0 = worldPosition.x + static_cast<float>(a);
         float x1 = x0 + w;
+
         float y0 = worldPosition.y + static_cast<float>(b);
         float y1 = y0 + h;
-        float z1 = worldPosition.z + static_cast<float>(slice) + 1.0f;
+
+        float z1 =
+            worldPosition.z +
+            static_cast<float>(slice) +
+            1.0f;
 
         push(x0, y0, z1, 0.0f, 0.0f);
         push(x1, y0, z1, w, 0.0f);
         push(x1, y1, z1, w, h);
+
         push(x1, y1, z1, w, h);
         push(x0, y1, z1, 0.0f, h);
         push(x0, y0, z1, 0.0f, 0.0f);
+
         break;
     }
 
     case Face::Left:
     {
-        float x0 = worldPosition.x + static_cast<float>(slice);
-        float y0 = worldPosition.y + static_cast<float>(b);
+        float x0 =
+            worldPosition.x +
+            static_cast<float>(slice);
+
+        float y0 =
+            worldPosition.y +
+            static_cast<float>(b);
+
         float y1 = y0 + h;
-        float z0 = worldPosition.z + static_cast<float>(a);
+
+        float z0 =
+            worldPosition.z +
+            static_cast<float>(a);
+
         float z1 = z0 + w;
 
         push(x0, y1, z1, w, h);
         push(x0, y1, z0, 0.0f, h);
         push(x0, y0, z0, 0.0f, 0.0f);
+
         push(x0, y0, z0, 0.0f, 0.0f);
         push(x0, y0, z1, w, 0.0f);
         push(x0, y1, z1, w, h);
+
         break;
     }
 
     case Face::Right:
     {
-        float x1 = worldPosition.x + static_cast<float>(slice) + 1.0f;
-        float y0 = worldPosition.y + static_cast<float>(b);
+        float x1 =
+            worldPosition.x +
+            static_cast<float>(slice) +
+            1.0f;
+
+        float y0 =
+            worldPosition.y +
+            static_cast<float>(b);
+
         float y1 = y0 + h;
-        float z0 = worldPosition.z + static_cast<float>(a);
+
+        float z0 =
+            worldPosition.z +
+            static_cast<float>(a);
+
         float z1 = z0 + w;
 
         push(x1, y1, z1, 0.0f, h);
         push(x1, y1, z0, w, h);
         push(x1, y0, z0, w, 0.0f);
+
         push(x1, y0, z0, w, 0.0f);
         push(x1, y0, z1, 0.0f, 0.0f);
         push(x1, y1, z1, 0.0f, h);
+
         break;
     }
 
     case Face::Bottom:
     {
-        float x0 = worldPosition.x + static_cast<float>(a);
+        float x0 =
+            worldPosition.x +
+            static_cast<float>(a);
+
         float x1 = x0 + w;
-        float y0 = worldPosition.y + static_cast<float>(slice);
-        float z0 = worldPosition.z + static_cast<float>(b);
+
+        float y0 =
+            worldPosition.y +
+            static_cast<float>(slice);
+
+        float z0 =
+            worldPosition.z +
+            static_cast<float>(b);
+
         float z1 = z0 + h;
 
         push(x0, y0, z0, 0.0f, h);
         push(x1, y0, z0, w, h);
         push(x1, y0, z1, w, 0.0f);
+
         push(x1, y0, z1, w, 0.0f);
         push(x0, y0, z1, 0.0f, 0.0f);
         push(x0, y0, z0, 0.0f, h);
+
         break;
     }
 
     case Face::Top:
     {
-        float x0 = worldPosition.x + static_cast<float>(a);
+        float x0 =
+            worldPosition.x +
+            static_cast<float>(a);
+
         float x1 = x0 + w;
-        float y1 = worldPosition.y + static_cast<float>(slice) + 1.0f;
-        float z0 = worldPosition.z + static_cast<float>(b);
+
+        float y1 =
+            worldPosition.y +
+            static_cast<float>(slice) +
+            1.0f;
+
+        float z0 =
+            worldPosition.z +
+            static_cast<float>(b);
+
         float z1 = z0 + h;
 
         push(x0, y1, z0, 0.0f, h);
         push(x1, y1, z0, w, h);
         push(x1, y1, z1, w, 0.0f);
+
         push(x1, y1, z1, w, 0.0f);
         push(x0, y1, z1, 0.0f, 0.0f);
         push(x0, y1, z0, 0.0f, h);
+
         break;
     }
     }

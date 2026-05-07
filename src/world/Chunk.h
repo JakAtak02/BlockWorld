@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -19,6 +20,8 @@ public:
     static constexpr int SIZE = 32;
     static constexpr int VOLUME = SIZE * SIZE * SIZE;
 
+    using BlockLookupFunction = std::function<uint16_t(int, int, int)>;
+
     Chunk();
 
     void generateTerrain(int chunkX, int chunkZ);
@@ -33,7 +36,8 @@ public:
 
     std::vector<float> buildMesh(
         const std::array<BlockRenderInfo, 4>& renderInfo,
-        const glm::vec3& worldPosition
+        const glm::vec3& worldPosition,
+        const BlockLookupFunction& blockLookup
     ) const;
 
 private:

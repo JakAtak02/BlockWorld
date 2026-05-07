@@ -56,7 +56,7 @@ Application::Application()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    m_window = new Window(1280, 720, "Block World");
+    m_window = new Window(1280, 720, "BlockWorld");
 
     if (!m_window->getNativeWindow())
     {
@@ -244,7 +244,7 @@ void Application::run()
         if (fpsTimer >= 1.0f)
         {
             std::string title =
-                "Block World - FPS: " +
+                "BlockWorld - FPS: " +
                 std::to_string(fpsCounter);
 
             glfwSetWindowTitle(

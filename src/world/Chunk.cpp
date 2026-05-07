@@ -99,7 +99,8 @@ void Chunk::generateTerrain(int chunkX, int chunkZ)
 
 std::vector<float> Chunk::buildMesh(
     const std::array<BlockRenderInfo, 4>& renderInfo,
-    const glm::vec3& worldPosition
+    const glm::vec3& worldPosition,
+    const BlockLookupFunction& blockLookup
 ) const
 {
     std::vector<float> vertices;
@@ -109,7 +110,8 @@ std::vector<float> Chunk::buildMesh(
         *this,
         vertices,
         renderInfo,
-        worldPosition
+        worldPosition,
+        blockLookup
     );
 
     return vertices;

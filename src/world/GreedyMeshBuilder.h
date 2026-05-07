@@ -15,7 +15,8 @@ public:
         const Chunk& chunk,
         std::vector<float>& vertices,
         const std::array<BlockRenderInfo, 4>& renderInfo,
-        const glm::vec3& worldPosition
+        const glm::vec3& worldPosition,
+        const Chunk::BlockLookupFunction& blockLookup
     );
 
 private:
@@ -42,12 +43,15 @@ private:
         std::vector<float>& vertices,
         const std::array<BlockRenderInfo, 4>& renderInfo,
         const glm::vec3& worldPosition,
+        const Chunk::BlockLookupFunction& blockLookup,
         Face face
     );
 
     static Cell getCell(
         const Chunk& chunk,
         const std::array<BlockRenderInfo, 4>& renderInfo,
+        const glm::vec3& worldPosition,
+        const Chunk::BlockLookupFunction& blockLookup,
         Face face,
         int slice,
         int a,

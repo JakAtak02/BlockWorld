@@ -10,7 +10,11 @@
 World::World(const std::array<BlockRenderInfo, 4>& renderInfo)
     : m_renderInfo(renderInfo)
 {
-    // 3x3 chunk grid centered around world origin.
+    // First pass:
+    // Create and insert every chunk into the world map.
+    // We do NOT build meshes yet because neighboring chunks
+    // must already exist for cross-chunk face culling.
+
     for (int chunkZ = -1; chunkZ <= 1; chunkZ++)
     {
         for (int chunkX = -1; chunkX <= 1; chunkX++)
@@ -34,11 +38,20 @@ World::World(const std::array<BlockRenderInfo, 4>& renderInfo)
 
             data.chunk.generateTerrain(chunkX, chunkZ);
 
-            rebuildChunkMesh(data);
-
             ChunkCoord coord{ chunkX, chunkZ };
+
             m_chunks.emplace(coord, std::move(data));
         }
+    }
+
+    // Second pass:
+    // Now every chunk exists, so neighboring chunk lookups work correctly.
+
+    for (auto& [coord, data] : m_chunks)
+    {
+        rebuildChunkMesh(data);
+
+        data.chunk.clearDirty();
     }
 }
 
@@ -57,7 +70,11 @@ void World::update()
     }
 }
 
-uint16_t World::getBlock(int worldX, int worldY, int worldZ) const
+uint16_t World::getBlock(
+    int worldX,
+    int worldY,
+    int worldZ
+) const
 {
     if (worldY < 0 || worldY >= Chunk::SIZE)
     {
@@ -70,17 +87,27 @@ uint16_t World::getBlock(int worldX, int worldY, int worldZ) const
     int localX = positiveMod(worldX, Chunk::SIZE);
     int localZ = positiveMod(worldZ, Chunk::SIZE);
 
-    const ChunkRenderData* data = findChunk(chunkX, chunkZ);
+    const ChunkRenderData* data =
+        findChunk(chunkX, chunkZ);
 
     if (!data)
     {
         return 0;
     }
 
-    return data->chunk.getBlock(localX, worldY, localZ);
+    return data->chunk.getBlock(
+        localX,
+        worldY,
+        localZ
+    );
 }
 
-void World::setBlock(int worldX, int worldY, int worldZ, uint16_t blockId)
+void World::setBlock(
+    int worldX,
+    int worldY,
+    int worldZ,
+    uint16_t blockId
+)
 {
     if (worldY < 0 || worldY >= Chunk::SIZE)
     {
@@ -93,37 +120,57 @@ void World::setBlock(int worldX, int worldY, int worldZ, uint16_t blockId)
     int localX = positiveMod(worldX, Chunk::SIZE);
     int localZ = positiveMod(worldZ, Chunk::SIZE);
 
-    ChunkRenderData* data = findChunk(chunkX, chunkZ);
+    ChunkRenderData* data =
+        findChunk(chunkX, chunkZ);
 
     if (!data)
     {
         return;
     }
 
-    data->chunk.setBlock(localX, worldY, localZ, blockId);
+    data->chunk.setBlock(
+        localX,
+        worldY,
+        localZ,
+        blockId
+    );
+
+    // Neighbor rebuild propagation.
 
     if (localX == 0)
     {
-        if (ChunkRenderData* neighbor = findChunk(chunkX - 1, chunkZ))
+        if (ChunkRenderData* neighbor =
+            findChunk(chunkX - 1, chunkZ))
+        {
             neighbor->chunk.markDirty();
+        }
     }
 
     if (localX == Chunk::SIZE - 1)
     {
-        if (ChunkRenderData* neighbor = findChunk(chunkX + 1, chunkZ))
+        if (ChunkRenderData* neighbor =
+            findChunk(chunkX + 1, chunkZ))
+        {
             neighbor->chunk.markDirty();
+        }
     }
 
     if (localZ == 0)
     {
-        if (ChunkRenderData* neighbor = findChunk(chunkX, chunkZ - 1))
+        if (ChunkRenderData* neighbor =
+            findChunk(chunkX, chunkZ - 1))
+        {
             neighbor->chunk.markDirty();
+        }
     }
 
     if (localZ == Chunk::SIZE - 1)
     {
-        if (ChunkRenderData* neighbor = findChunk(chunkX, chunkZ + 1))
+        if (ChunkRenderData* neighbor =
+            findChunk(chunkX, chunkZ + 1))
+        {
             neighbor->chunk.markDirty();
+        }
     }
 }
 
@@ -134,7 +181,8 @@ bool World::raycastBlock(
     BlockRaycastHit& hit
 ) const
 {
-    glm::vec3 rayDirection = glm::normalize(direction);
+    glm::vec3 rayDirection =
+        glm::normalize(direction);
 
     glm::ivec3 blockPosition(
         static_cast<int>(std::floor(origin.x)),
@@ -149,25 +197,57 @@ bool World::raycastBlock(
     );
 
     glm::vec3 nextBoundary(
-        step.x > 0 ? static_cast<float>(blockPosition.x + 1) : static_cast<float>(blockPosition.x),
-        step.y > 0 ? static_cast<float>(blockPosition.y + 1) : static_cast<float>(blockPosition.y),
-        step.z > 0 ? static_cast<float>(blockPosition.z + 1) : static_cast<float>(blockPosition.z)
+        step.x > 0 ?
+        static_cast<float>(blockPosition.x + 1) :
+        static_cast<float>(blockPosition.x),
+
+        step.y > 0 ?
+        static_cast<float>(blockPosition.y + 1) :
+        static_cast<float>(blockPosition.y),
+
+        step.z > 0 ?
+        static_cast<float>(blockPosition.z + 1) :
+        static_cast<float>(blockPosition.z)
     );
 
     glm::vec3 tMax;
     glm::vec3 tDelta;
 
-    constexpr float infinity = std::numeric_limits<float>::infinity();
+    constexpr float infinity =
+        std::numeric_limits<float>::infinity();
 
-    tMax.x = rayDirection.x != 0.0f ? (nextBoundary.x - origin.x) / rayDirection.x : infinity;
-    tMax.y = rayDirection.y != 0.0f ? (nextBoundary.y - origin.y) / rayDirection.y : infinity;
-    tMax.z = rayDirection.z != 0.0f ? (nextBoundary.z - origin.z) / rayDirection.z : infinity;
+    tMax.x =
+        rayDirection.x != 0.0f ?
+        (nextBoundary.x - origin.x) / rayDirection.x :
+        infinity;
 
-    tDelta.x = rayDirection.x != 0.0f ? std::abs(1.0f / rayDirection.x) : infinity;
-    tDelta.y = rayDirection.y != 0.0f ? std::abs(1.0f / rayDirection.y) : infinity;
-    tDelta.z = rayDirection.z != 0.0f ? std::abs(1.0f / rayDirection.z) : infinity;
+    tMax.y =
+        rayDirection.y != 0.0f ?
+        (nextBoundary.y - origin.y) / rayDirection.y :
+        infinity;
 
-    glm::ivec3 previousBlockPosition = blockPosition;
+    tMax.z =
+        rayDirection.z != 0.0f ?
+        (nextBoundary.z - origin.z) / rayDirection.z :
+        infinity;
+
+    tDelta.x =
+        rayDirection.x != 0.0f ?
+        std::abs(1.0f / rayDirection.x) :
+        infinity;
+
+    tDelta.y =
+        rayDirection.y != 0.0f ?
+        std::abs(1.0f / rayDirection.y) :
+        infinity;
+
+    tDelta.z =
+        rayDirection.z != 0.0f ?
+        std::abs(1.0f / rayDirection.z) :
+        infinity;
+
+    glm::ivec3 previousBlockPosition =
+        blockPosition;
 
     float distance = 0.0f;
 
@@ -182,10 +262,13 @@ bool World::raycastBlock(
         if (blockId != 0)
         {
             hit.hit = true;
+
             hit.blockPosition = blockPosition;
             hit.previousBlockPosition = previousBlockPosition;
+
             hit.blockId = blockId;
             hit.distance = distance;
+
             return true;
         }
 
@@ -196,13 +279,17 @@ bool World::raycastBlock(
             if (tMax.x < tMax.z)
             {
                 blockPosition.x += step.x;
+
                 distance = tMax.x;
+
                 tMax.x += tDelta.x;
             }
             else
             {
                 blockPosition.z += step.z;
+
                 distance = tMax.z;
+
                 tMax.z += tDelta.z;
             }
         }
@@ -211,19 +298,24 @@ bool World::raycastBlock(
             if (tMax.y < tMax.z)
             {
                 blockPosition.y += step.y;
+
                 distance = tMax.y;
+
                 tMax.y += tDelta.y;
             }
             else
             {
                 blockPosition.z += step.z;
+
                 distance = tMax.z;
+
                 tMax.z += tDelta.z;
             }
         }
     }
 
     hit = {};
+
     return false;
 }
 
@@ -231,7 +323,10 @@ void World::draw(const Frustum& frustum) const
 {
     for (const auto& [coord, data] : m_chunks)
     {
-        if (!frustum.isBoxVisible(data.minBounds, data.maxBounds))
+        if (!frustum.isBoxVisible(
+            data.minBounds,
+            data.maxBounds
+        ))
         {
             continue;
         }
@@ -265,9 +360,11 @@ void World::drawChunkBorders(
 int World::floorDiv(int value, int divisor)
 {
     int result = value / divisor;
+
     int remainder = value % divisor;
 
-    if (remainder != 0 && ((remainder < 0) != (divisor < 0)))
+    if (remainder != 0 &&
+        ((remainder < 0) != (divisor < 0)))
     {
         result--;
     }
@@ -287,9 +384,13 @@ int World::positiveMod(int value, int divisor)
     return result;
 }
 
-World::ChunkRenderData* World::findChunk(int chunkX, int chunkZ)
+World::ChunkRenderData* World::findChunk(
+    int chunkX,
+    int chunkZ
+)
 {
-    auto it = m_chunks.find(ChunkCoord{ chunkX, chunkZ });
+    auto it =
+        m_chunks.find(ChunkCoord{ chunkX, chunkZ });
 
     if (it == m_chunks.end())
     {
@@ -299,9 +400,13 @@ World::ChunkRenderData* World::findChunk(int chunkX, int chunkZ)
     return &it->second;
 }
 
-const World::ChunkRenderData* World::findChunk(int chunkX, int chunkZ) const
+const World::ChunkRenderData* World::findChunk(
+    int chunkX,
+    int chunkZ
+) const
 {
-    auto it = m_chunks.find(ChunkCoord{ chunkX, chunkZ });
+    auto it =
+        m_chunks.find(ChunkCoord{ chunkX, chunkZ });
 
     if (it == m_chunks.end())
     {
@@ -319,8 +424,18 @@ void World::rebuildChunkMesh(ChunkRenderData& data)
         static_cast<float>(data.chunkZ * Chunk::SIZE)
     );
 
+    Chunk::BlockLookupFunction blockLookup =
+        [this](int worldX, int worldY, int worldZ) -> uint16_t
+        {
+            return getBlock(worldX, worldY, worldZ);
+        };
+
     std::vector<float> vertices =
-        data.chunk.buildMesh(m_renderInfo, worldPosition);
+        data.chunk.buildMesh(
+            m_renderInfo,
+            worldPosition,
+            blockLookup
+        );
 
     std::cout
         << "Rebuilt chunk ("
@@ -331,5 +446,6 @@ void World::rebuildChunkMesh(ChunkRenderData& data)
         << vertices.size() / Mesh::FLOATS_PER_VERTEX
         << std::endl;
 
-    data.mesh = std::make_unique<Mesh>(vertices);
+    data.mesh =
+        std::make_unique<Mesh>(vertices);
 }
