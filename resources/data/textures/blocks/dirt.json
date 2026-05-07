@@ -1,0 +1,7 @@
+{
+  "id": "blockworld:dirt",
+  "display_name": "Dirt",
+  "texture": "assets/textures/blocks/dirt.png",
+  "solid": true,
+  "opaque": true
+}

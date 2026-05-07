@@ -1,0 +1,7 @@
+{
+  "id": "blockworld:stone",
+  "display_name": "Stone",
+  "texture": "assets/textures/blocks/stone.png",
+  "solid": true,
+  "opaque": true
+}

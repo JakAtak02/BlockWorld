@@ -1,0 +1,7 @@
+{
+  "id": "blockworld:sand",
+  "display_name": "Sand",
+  "texture": "assets/textures/blocks/sand.png",
+  "solid": true,
+  "opaque": true
+}
