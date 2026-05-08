@@ -205,6 +205,10 @@ void Application::run()
     float fpsTimer = 0.0f;
     int fpsCounter = 0;
 
+    float autosaveTimer = 0.0f;
+
+    constexpr float AUTOSAVE_INTERVAL = 300.0f;
+
     while (!m_window->shouldClose())
     {
         float currentFrameTime =
@@ -217,6 +221,8 @@ void Application::run()
 
         fpsTimer += deltaTime;
         fpsCounter++;
+
+        autosaveTimer += deltaTime;
 
         GLFWwindow* nativeWindow =
             m_window->getNativeWindow();
@@ -357,6 +363,17 @@ void Application::run()
 
         world.update();
 
+        if (autosaveTimer >= AUTOSAVE_INTERVAL)
+        {
+            world.saveWorld();
+
+            std::cout
+                << "Autosave complete."
+                << std::endl;
+
+            autosaveTimer = 0.0f;
+        }
+
         BlockRaycastHit selectedBlock;
 
         world.raycastBlock(
@@ -453,4 +470,6 @@ void Application::run()
         m_window->swapBuffers();
         m_window->pollEvents();
     }
+
+    world.saveWorld();
 }

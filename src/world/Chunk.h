@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <vector>
 
 #include <glm/glm.hpp>
@@ -35,13 +36,27 @@ public:
 
     void generateTerrain(int chunkX, int chunkZ);
 
+    bool saveToFile(
+        const std::string& path,
+        int chunkX,
+        int chunkZ
+    ) const;
+
+    bool loadFromFile(
+        const std::string& path
+    );
+
     uint16_t getBlock(int x, int y, int z) const;
 
     void setBlock(int x, int y, int z, uint16_t blockId);
 
-    bool isDirty() const;
-    void markDirty();
-    void clearDirty();
+    bool isMeshDirty() const;
+    void markMeshDirty();
+    void clearMeshDirty();
+
+    bool isSaveDirty() const;
+    void markSaveDirty();
+    void clearSaveDirty();
 
     std::vector<float> buildMesh(
         const std::vector<BlockRenderInfo>& renderInfo,
@@ -73,5 +88,6 @@ private:
     std::vector<uint16_t> m_blocks =
         std::vector<uint16_t>(VOLUME, 0);
 
-    bool m_dirty = true;
+    bool m_meshDirty = true;
+    bool m_saveDirty = false;
 };

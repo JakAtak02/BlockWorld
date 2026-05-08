@@ -1,9 +1,12 @@
 #include "world/Chunk.h"
 #include "world/GreedyMeshBuilder.h"
 
+#include <fstream>
+#include <json.hpp>
+
 Chunk::Chunk()
 {
-    
+
 }
 
 int Chunk::index(int x, int y, int z) const
@@ -34,22 +37,38 @@ void Chunk::setBlock(int x, int y, int z, uint16_t blockId)
 
     m_blocks[index(x, y, z)] = blockId;
 
-    markDirty();
+    markMeshDirty();
+    markSaveDirty();
 }
 
-bool Chunk::isDirty() const
+bool Chunk::isMeshDirty() const
 {
-    return m_dirty;
+    return m_meshDirty;
 }
 
-void Chunk::markDirty()
+void Chunk::markMeshDirty()
 {
-    m_dirty = true;
+    m_meshDirty = true;
 }
 
-void Chunk::clearDirty()
+void Chunk::clearMeshDirty()
 {
-    m_dirty = false;
+    m_meshDirty = false;
+}
+
+bool Chunk::isSaveDirty() const
+{
+    return m_saveDirty;
+}
+
+void Chunk::markSaveDirty()
+{
+    m_saveDirty = true;
+}
+
+void Chunk::clearSaveDirty()
+{
+    m_saveDirty = false;
 }
 
 bool Chunk::isAir(int x, int y, int z) const
@@ -94,7 +113,8 @@ void Chunk::generateTerrain(int chunkX, int chunkZ)
         }
     }
 
-    markDirty();
+    markMeshDirty();
+    markSaveDirty();
 }
 
 std::vector<float> Chunk::buildMesh(
@@ -146,4 +166,71 @@ void Chunk::addFace(
     float textureIndex
 ) const
 {
+}
+
+bool Chunk::saveToFile(
+    const std::string& path,
+    int chunkX,
+    int chunkZ
+) const
+{
+    nlohmann::json data;
+
+    data["version"] = 1;
+    data["chunk_x"] = chunkX;
+    data["chunk_z"] = chunkZ;
+    data["size"] = SIZE;
+
+    data["blocks"] = m_blocks;
+
+    std::ofstream file(path);
+
+    if (!file.is_open())
+    {
+        return false;
+    }
+
+    file << data.dump(1);
+
+    return true;
+}
+
+bool Chunk::loadFromFile(
+    const std::string& path
+)
+{
+    std::ifstream file(path);
+
+    if (!file.is_open())
+    {
+        return false;
+    }
+
+    nlohmann::json data;
+    file >> data;
+
+    int version = data.value("version", 0);
+
+    if (version != 1)
+    {
+        return false;
+    }
+
+    if (!data.contains("blocks"))
+    {
+        return false;
+    }
+
+    m_blocks =
+        data["blocks"].get<std::vector<uint16_t>>();
+
+    if (m_blocks.size() != VOLUME)
+    {
+        return false;
+    }
+
+    markMeshDirty();
+    clearSaveDirty();
+
+    return true;
 }

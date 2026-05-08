@@ -4,16 +4,26 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
+#include <sstream>
+#include <json.hpp>
 
 World::World(const std::vector<BlockRenderInfo>& renderInfo)
     : m_renderInfo(renderInfo)
 {
-    // First pass:
-    // Create and insert every chunk into the world map.
-    // We do NOT build meshes yet because neighboring chunks
-    // must already exist for cross-chunk face culling.
+    namespace fs = std::filesystem;
+
+    fs::create_directories(
+        getWorldSavePath() + "/chunks"
+    );
+
+    if (!worldMetadataExists())
+    {
+        createWorldMetadataFile();
+    }
 
     for (int chunkZ = -1; chunkZ <= 1; chunkZ++)
     {
@@ -36,7 +46,21 @@ World::World(const std::vector<BlockRenderInfo>& renderInfo)
                 data.minBounds.z + static_cast<float>(Chunk::SIZE)
             );
 
-            data.chunk.generateTerrain(chunkX, chunkZ);
+            std::string chunkPath =
+                getChunkSavePath(chunkX, chunkZ);
+
+            if (!data.chunk.loadFromFile(chunkPath))
+            {
+                data.chunk.generateTerrain(chunkX, chunkZ);
+
+                data.chunk.saveToFile(
+                    chunkPath,
+                    chunkX,
+                    chunkZ
+                );
+
+                data.chunk.clearSaveDirty();
+            }
 
             ChunkCoord coord{ chunkX, chunkZ };
 
@@ -44,14 +68,11 @@ World::World(const std::vector<BlockRenderInfo>& renderInfo)
         }
     }
 
-    // Second pass:
-    // Now every chunk exists, so neighboring chunk lookups work correctly.
-
     for (auto& [coord, data] : m_chunks)
     {
         rebuildChunkMesh(data);
 
-        data.chunk.clearDirty();
+        data.chunk.clearMeshDirty();
     }
 }
 
@@ -59,14 +80,14 @@ void World::update()
 {
     for (auto& [coord, data] : m_chunks)
     {
-        if (!data.chunk.isDirty())
+        if (!data.chunk.isMeshDirty())
         {
             continue;
         }
 
         rebuildChunkMesh(data);
 
-        data.chunk.clearDirty();
+        data.chunk.clearMeshDirty();
     }
 }
 
@@ -135,14 +156,12 @@ void World::setBlock(
         blockId
     );
 
-    // Neighbor rebuild propagation.
-
     if (localX == 0)
     {
         if (ChunkRenderData* neighbor =
             findChunk(chunkX - 1, chunkZ))
         {
-            neighbor->chunk.markDirty();
+            neighbor->chunk.markMeshDirty();
         }
     }
 
@@ -151,7 +170,7 @@ void World::setBlock(
         if (ChunkRenderData* neighbor =
             findChunk(chunkX + 1, chunkZ))
         {
-            neighbor->chunk.markDirty();
+            neighbor->chunk.markMeshDirty();
         }
     }
 
@@ -160,7 +179,7 @@ void World::setBlock(
         if (ChunkRenderData* neighbor =
             findChunk(chunkX, chunkZ - 1))
         {
-            neighbor->chunk.markDirty();
+            neighbor->chunk.markMeshDirty();
         }
     }
 
@@ -169,7 +188,7 @@ void World::setBlock(
         if (ChunkRenderData* neighbor =
             findChunk(chunkX, chunkZ + 1))
         {
-            neighbor->chunk.markDirty();
+            neighbor->chunk.markMeshDirty();
         }
     }
 }
@@ -448,4 +467,100 @@ void World::rebuildChunkMesh(ChunkRenderData& data)
 
     data.mesh =
         std::make_unique<Mesh>(vertices);
+}
+
+std::string World::getWorldSavePath() const
+{
+    return "saves/" + m_worldName;
+}
+
+std::string World::getChunkSavePath(
+    int chunkX,
+    int chunkZ
+) const
+{
+    std::stringstream stream;
+
+    stream
+        << getWorldSavePath()
+        << "/chunks/chunk_"
+        << chunkX
+        << "_"
+        << chunkZ
+        << ".json";
+
+    return stream.str();
+}
+
+void World::saveWorld()
+{
+    namespace fs = std::filesystem;
+
+    fs::create_directories(
+        getWorldSavePath() + "/chunks"
+    );
+
+    for (auto& [coord, data] : m_chunks)
+    {
+        if (!data.chunk.isSaveDirty())
+        {
+            continue;
+        }
+
+        std::string chunkPath =
+            getChunkSavePath(
+                data.chunkX,
+                data.chunkZ
+            );
+
+        if (data.chunk.saveToFile(
+            chunkPath,
+            data.chunkX,
+            data.chunkZ))
+        {
+            data.chunk.clearSaveDirty();
+        }
+    }
+
+    std::cout
+        << "World saved."
+        << std::endl;
+}
+
+bool World::worldMetadataExists() const
+{
+    namespace fs = std::filesystem;
+
+    return fs::exists(
+        getWorldSavePath() + "/world.json"
+    );
+}
+
+void World::createWorldMetadataFile() const
+{
+    nlohmann::json data;
+
+    data["name"] = m_worldName;
+    data["version"] = m_worldVersion;
+    data["seed"] = m_worldSeed;
+    data["chunk_size"] = Chunk::SIZE;
+
+    std::ofstream file(
+        getWorldSavePath() + "/world.json"
+    );
+
+    if (!file.is_open())
+    {
+        std::cout
+            << "Failed to create world metadata file."
+            << std::endl;
+
+        return;
+    }
+
+    file << data.dump(1);
+
+    std::cout
+        << "Created world metadata file."
+        << std::endl;
 }

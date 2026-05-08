@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -42,6 +43,7 @@ private:
         {
             std::size_t h1 = std::hash<int>{}(coord.x);
             std::size_t h2 = std::hash<int>{}(coord.z);
+
             return h1 ^ (h2 << 1);
         }
     };
@@ -63,8 +65,20 @@ public:
 
     void update();
 
-    uint16_t getBlock(int worldX, int worldY, int worldZ) const;
-    void setBlock(int worldX, int worldY, int worldZ, uint16_t blockId);
+    void saveWorld();
+
+    uint16_t getBlock(
+        int worldX,
+        int worldY,
+        int worldZ
+    ) const;
+
+    void setBlock(
+        int worldX,
+        int worldY,
+        int worldZ,
+        uint16_t blockId
+    );
 
     bool raycastBlock(
         const glm::vec3& origin,
@@ -83,15 +97,46 @@ public:
 
 private:
     static int floorDiv(int value, int divisor);
+
     static int positiveMod(int value, int divisor);
 
-    ChunkRenderData* findChunk(int chunkX, int chunkZ);
-    const ChunkRenderData* findChunk(int chunkX, int chunkZ) const;
+    ChunkRenderData* findChunk(
+        int chunkX,
+        int chunkZ
+    );
 
-    void rebuildChunkMesh(ChunkRenderData& chunkData);
+    const ChunkRenderData* findChunk(
+        int chunkX,
+        int chunkZ
+    ) const;
+
+    void rebuildChunkMesh(
+        ChunkRenderData& chunkData
+    );
+
+    std::string getWorldSavePath() const;
+
+    std::string getChunkSavePath(
+        int chunkX,
+        int chunkZ
+    ) const;
+
+    void createWorldMetadataFile() const;
+
+    bool worldMetadataExists() const;
 
 private:
-    std::unordered_map<ChunkCoord, ChunkRenderData, ChunkCoordHash> m_chunks;
+    std::unordered_map<
+        ChunkCoord,
+        ChunkRenderData,
+        ChunkCoordHash
+    > m_chunks;
 
     std::vector<BlockRenderInfo> m_renderInfo;
+
+    std::string m_worldName = "World_0";
+
+    uint32_t m_worldVersion = 1;
+
+    uint32_t m_worldSeed = 12345;
 };
