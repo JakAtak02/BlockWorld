@@ -3,7 +3,7 @@
 
 Chunk::Chunk()
 {
-    m_blocks.fill(0);
+    
 }
 
 int Chunk::index(int x, int y, int z) const
@@ -98,7 +98,7 @@ void Chunk::generateTerrain(int chunkX, int chunkZ)
 }
 
 std::vector<float> Chunk::buildMesh(
-    const std::array<BlockRenderInfo, 5>& renderInfo,
+    const std::vector<BlockRenderInfo>& renderInfo,
     const glm::vec3& worldPosition,
     const BlockLookupFunction& blockLookup
 ) const
@@ -120,7 +120,7 @@ std::vector<float> Chunk::buildMesh(
 float Chunk::getTextureIndexForFace(
     uint16_t blockId,
     int face,
-    const std::array<BlockRenderInfo, 5>& renderInfo
+    const std::vector<BlockRenderInfo>& renderInfo
 ) const
 {
     if (blockId == 0 || blockId > renderInfo.size())

@@ -4,6 +4,7 @@
 #include "renderer/BlockSelectionRenderer.h"
 #include "renderer/DebugRenderer.h"
 #include "renderer/Frustum.h"
+#include "renderer/HudRenderer.h"
 #include "renderer/Shader.h"
 #include "renderer/Texture2D.h"
 
@@ -13,9 +14,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <array>
 #include <iostream>
 #include <string>
+#include <vector>
 
 enum class DebugViewMode
 {
@@ -44,7 +45,7 @@ static const char* debugViewModeToString(DebugViewMode mode)
 
 Application::Application()
 {
-    std::cout << "Starting Block World..." << std::endl;
+    std::cout << "Starting BlockWorld..." << std::endl;
 
     if (!glfwInit())
     {
@@ -101,48 +102,47 @@ void Application::run()
     if (!registry.loadBlockFromJson("resources/data/textures/blocks/sand.json")) return;
     if (!registry.loadBlockFromJson("resources/data/textures/blocks/grass_block.json")) return;
     if (!registry.loadBlockFromJson("resources/data/textures/blocks/cobblestone.json")) return;
-
-
-    const BlockType* stone = registry.getBlock("blockworld:stone");
-    const BlockType* dirt = registry.getBlock("blockworld:dirt");
-    const BlockType* sand = registry.getBlock("blockworld:sand");
-    const BlockType* grass = registry.getBlock("blockworld:grass_block");
-    const BlockType* cobblestone = registry.getBlock("blockworld:cobblestone");
-
-
-    if (!stone || !dirt || !sand || !grass || !cobblestone)
-    {
-        std::cout << "Failed to load blocks." << std::endl;
-        return;
-    }
+    if (!registry.loadBlockFromJson("resources/data/textures/blocks/oak_planks.json")) return;
+    if (!registry.loadBlockFromJson("resources/data/textures/blocks/iron_ore.json")) return;
+    if (!registry.loadBlockFromJson("resources/data/textures/blocks/oak_log.json")) return;
 
     Texture2D textures;
 
-    if (!textures.loadArrayFromFiles({
-        "resources/" + stone->sideTexturePath,
-        "resources/" + dirt->sideTexturePath,
-        "resources/" + sand->sideTexturePath,
-        "resources/" + grass->topTexturePath,
-        "resources/" + grass->sideTexturePath,
-        "resources/" + cobblestone->sideTexturePath,
-        }))
+    std::vector<std::string> texturePaths;
+
+    for (const std::string& path : registry.getTexturePaths())
+    {
+        texturePaths.push_back(
+            "resources/" + path
+        );
+    }
+
+    if (!textures.loadArrayFromFiles(texturePaths))
     {
         return;
     }
 
-    std::array<BlockRenderInfo, 5> renderInfo;
-
-    renderInfo[0] = { 0.0f, 0.0f, 0.0f };
-    renderInfo[1] = { 1.0f, 1.0f, 1.0f };
-    renderInfo[2] = { 4.0f, 3.0f, 1.0f };
-    renderInfo[3] = { 2.0f, 2.0f, 2.0f };
-    renderInfo[4] = { 5.0f, 5.0f, 5.0f };
+    std::vector<BlockRenderInfo> renderInfo =
+        registry.buildRenderInfo();
 
     World world(renderInfo);
 
     DebugRenderer debugRenderer;
     BlockSelectionRenderer blockSelectionRenderer;
+    HudRenderer hudRenderer;
     Frustum frustum;
+
+    if (!hudRenderer.loadHotbarTextureFromJson(
+        "resources/data/textures/gui/hud/hotbar.json"))
+    {
+        return;
+    }
+
+    if (!hudRenderer.loadHotbarSelectionTextureFromJson(
+        "resources/data/textures/gui/hud/hotbar_selection.json"))
+    {
+        return;
+    }
 
     DebugViewMode debugMode = DebugViewMode::Off;
     bool f3WasPressed = false;
@@ -308,6 +308,15 @@ void Application::run()
         playerInput.selectSlot5Pressed =
             glfwGetKey(nativeWindow, GLFW_KEY_5) == GLFW_PRESS;
 
+        playerInput.selectSlot6Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_6) == GLFW_PRESS;
+
+        playerInput.selectSlot7Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_7) == GLFW_PRESS;
+
+        playerInput.selectSlot8Pressed =
+            glfwGetKey(nativeWindow, GLFW_KEY_8) == GLFW_PRESS;
+
         double mouseX;
         double mouseY;
 
@@ -432,6 +441,14 @@ void Application::run()
                 view
             );
         }
+
+        hudRenderer.draw(
+            1280,
+            720,
+            textures,
+            renderInfo,
+            player.getSelectedBlockId()
+        );
 
         m_window->swapBuffers();
         m_window->pollEvents();

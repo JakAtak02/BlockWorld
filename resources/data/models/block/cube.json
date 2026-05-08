@@ -1,0 +1,10 @@
+{
+  "parent": "block/cube",
+
+  "display": {
+    "gui": {
+      "rotation": [ -28.0, -38.0, 0.0 ],
+      "scale": 34.0
+    }
+  }
+}

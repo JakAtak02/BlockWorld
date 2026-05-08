@@ -3,5 +3,6 @@
   "display_name": "Sand",
   "texture": "assets/textures/blocks/sand.png",
   "solid": true,
-  "opaque": true
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
 }

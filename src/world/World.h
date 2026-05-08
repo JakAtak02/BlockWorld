@@ -7,7 +7,6 @@
 
 #include <glm/glm.hpp>
 
-#include <array>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -60,7 +59,7 @@ private:
     };
 
 public:
-    World(const std::array<BlockRenderInfo, 5>& renderInfo);
+    World(const std::vector<BlockRenderInfo>& renderInfo);
 
     void update();
 
@@ -94,5 +93,5 @@ private:
 private:
     std::unordered_map<ChunkCoord, ChunkRenderData, ChunkCoordHash> m_chunks;
 
-    std::array<BlockRenderInfo, 5> m_renderInfo;
+    std::vector<BlockRenderInfo> m_renderInfo;
 };

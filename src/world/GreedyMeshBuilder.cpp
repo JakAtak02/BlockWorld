@@ -3,7 +3,7 @@
 void GreedyMeshBuilder::addGreedyFaces(
     const Chunk& chunk,
     std::vector<float>& vertices,
-    const std::array<BlockRenderInfo, 5>& renderInfo,
+    const std::vector<BlockRenderInfo>& renderInfo,
     const glm::vec3& worldPosition,
     const Chunk::BlockLookupFunction& blockLookup
 )
@@ -66,7 +66,7 @@ void GreedyMeshBuilder::addGreedyFaces(
 void GreedyMeshBuilder::addGreedyFaceDirection(
     const Chunk& chunk,
     std::vector<float>& vertices,
-    const std::array<BlockRenderInfo, 5>& renderInfo,
+    const std::vector<BlockRenderInfo>& renderInfo,
     const glm::vec3& worldPosition,
     const Chunk::BlockLookupFunction& blockLookup,
     Face face
@@ -197,7 +197,7 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
 
 GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
     const Chunk& chunk,
-    const std::array<BlockRenderInfo, 5>& renderInfo,
+    const std::vector<BlockRenderInfo>& renderInfo,
     const glm::vec3& worldPosition,
     const Chunk::BlockLookupFunction& blockLookup,
     Face face,
@@ -319,7 +319,7 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
 float GreedyMeshBuilder::getTextureIndexForFace(
     uint16_t blockId,
     Face face,
-    const std::array<BlockRenderInfo, 5>& renderInfo
+    const std::vector<BlockRenderInfo>& renderInfo
 )
 {
     if (blockId == 0 || blockId > renderInfo.size())

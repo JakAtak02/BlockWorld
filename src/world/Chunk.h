@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
 #include <functional>
 #include <vector>
@@ -12,6 +11,15 @@ struct BlockRenderInfo
     float sideTextureIndex = 0.0f;
     float topTextureIndex = 0.0f;
     float bottomTextureIndex = 0.0f;
+
+    glm::vec3 guiRotation =
+    {
+        -28.0f,
+        -38.0f,
+        0.0f
+    };
+
+    float guiScale = 34.0f;
 };
 
 class Chunk
@@ -20,7 +28,8 @@ public:
     static constexpr int SIZE = 32;
     static constexpr int VOLUME = SIZE * SIZE * SIZE;
 
-    using BlockLookupFunction = std::function<uint16_t(int, int, int)>;
+    using BlockLookupFunction =
+        std::function<uint16_t(int, int, int)>;
 
     Chunk();
 
@@ -35,7 +44,7 @@ public:
     void clearDirty();
 
     std::vector<float> buildMesh(
-        const std::array<BlockRenderInfo, 5>& renderInfo,
+        const std::vector<BlockRenderInfo>& renderInfo,
         const glm::vec3& worldPosition,
         const BlockLookupFunction& blockLookup
     ) const;
@@ -48,7 +57,7 @@ private:
     float getTextureIndexForFace(
         uint16_t blockId,
         int face,
-        const std::array<BlockRenderInfo, 5>& renderInfo
+        const std::vector<BlockRenderInfo>& renderInfo
     ) const;
 
     void addFace(
@@ -61,7 +70,8 @@ private:
     ) const;
 
 private:
-    std::array<uint16_t, VOLUME> m_blocks;
+    std::vector<uint16_t> m_blocks =
+        std::vector<uint16_t>(VOLUME, 0);
 
     bool m_dirty = true;
 };

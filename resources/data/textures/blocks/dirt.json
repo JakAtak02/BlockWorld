@@ -3,5 +3,6 @@
   "display_name": "Dirt",
   "texture": "assets/textures/blocks/dirt.png",
   "solid": true,
-  "opaque": true
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
 }

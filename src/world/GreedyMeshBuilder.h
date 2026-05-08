@@ -2,7 +2,6 @@
 
 #include "world/Chunk.h"
 
-#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -14,7 +13,7 @@ public:
     static void addGreedyFaces(
         const Chunk& chunk,
         std::vector<float>& vertices,
-        const std::array<BlockRenderInfo, 5>& renderInfo,
+        const std::vector<BlockRenderInfo>& renderInfo,
         const glm::vec3& worldPosition,
         const Chunk::BlockLookupFunction& blockLookup
     );
@@ -41,7 +40,7 @@ private:
     static void addGreedyFaceDirection(
         const Chunk& chunk,
         std::vector<float>& vertices,
-        const std::array<BlockRenderInfo, 5>& renderInfo,
+        const std::vector<BlockRenderInfo>& renderInfo,
         const glm::vec3& worldPosition,
         const Chunk::BlockLookupFunction& blockLookup,
         Face face
@@ -49,7 +48,7 @@ private:
 
     static Cell getCell(
         const Chunk& chunk,
-        const std::array<BlockRenderInfo, 5>& renderInfo,
+        const std::vector<BlockRenderInfo>& renderInfo,
         const glm::vec3& worldPosition,
         const Chunk::BlockLookupFunction& blockLookup,
         Face face,
@@ -61,7 +60,7 @@ private:
     static float getTextureIndexForFace(
         uint16_t blockId,
         Face face,
-        const std::array<BlockRenderInfo, 5>& renderInfo
+        const std::vector<BlockRenderInfo>& renderInfo
     );
 
     static void addQuad(

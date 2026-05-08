@@ -22,6 +22,9 @@ struct PlayerInputState
     bool selectSlot3Pressed = false;
     bool selectSlot4Pressed = false;
     bool selectSlot5Pressed = false;
+    bool selectSlot6Pressed = false;
+    bool selectSlot7Pressed = false;
+    bool selectSlot8Pressed = false;
 
     float lookDeltaX = 0.0f;
     float lookDeltaY = 0.0f;

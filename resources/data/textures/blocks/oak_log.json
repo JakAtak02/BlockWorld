@@ -1,0 +1,12 @@
+{
+  "id": "blockworld:oak_log",
+  "display_name": "Oak Log",
+  "textures": {
+    "top": "assets/textures/blocks/oak_log_top.png",
+    "side": "assets/textures/blocks/oak_log_side.png",
+    "bottom": "assets/textures/blocks/oak_log_top.png"
+  },
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

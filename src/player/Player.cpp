@@ -43,6 +43,15 @@ void Player::update(const PlayerInputState& input, float deltaTime)
     if (input.selectSlot5Pressed)
         m_selectedBlockId = 5;
 
+    if (input.selectSlot6Pressed)
+        m_selectedBlockId = 6;
+
+    if (input.selectSlot7Pressed)
+        m_selectedBlockId = 7;
+
+    if (input.selectSlot8Pressed)
+        m_selectedBlockId = 8;
+
     m_breakBlockRequested =
         input.breakBlockPressed &&
         !m_breakMousePreviouslyPressed;

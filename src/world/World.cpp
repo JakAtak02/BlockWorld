@@ -7,7 +7,7 @@
 #include <iostream>
 #include <limits>
 
-World::World(const std::array<BlockRenderInfo, 5>& renderInfo)
+World::World(const std::vector<BlockRenderInfo>& renderInfo)
     : m_renderInfo(renderInfo)
 {
     // First pass:

@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:oak_planks",
+  "display_name": "Oak Planks",
+  "texture": "assets/textures/blocks/oak_planks.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}
