@@ -24,6 +24,18 @@ public:
         const float* value
     ) const;
 
+    void setVec3(
+        const char* name,
+        float x,
+        float y,
+        float z
+    ) const;
+
+    void setFloat(
+        const char* name,
+        float value
+    ) const;
+
 private:
     unsigned int m_program = 0;
 

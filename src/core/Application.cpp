@@ -99,12 +99,8 @@ void Application::run()
     );
 
     DebugRenderer debugRenderer;
-
-    BlockSelectionRenderer
-        blockSelectionRenderer;
-
+    BlockSelectionRenderer blockSelectionRenderer;
     HudRenderer hudRenderer;
-
     Frustum frustum;
 
     if (!hudRenderer.loadHotbarTextureFromJson(
@@ -113,9 +109,8 @@ void Application::run()
         return;
     }
 
-    if (!hudRenderer
-        .loadHotbarSelectionTextureFromJson(
-            "resources/data/textures/gui/hud/hotbar_selection.json"))
+    if (!hudRenderer.loadHotbarSelectionTextureFromJson(
+        "resources/data/textures/gui/hud/hotbar_selection.json"))
     {
         return;
     }
@@ -137,9 +132,10 @@ void Application::run()
     int fpsCounter = 0;
 
     float autosaveTimer = 0.0f;
+    float streamingDebugTimer = 0.0f;
 
-    constexpr float AUTOSAVE_INTERVAL =
-        300.0f;
+    constexpr float AUTOSAVE_INTERVAL = 300.0f;
+    constexpr float STREAMING_DEBUG_INTERVAL = 1.0f;
 
     while (!m_window->shouldClose())
     {
@@ -213,7 +209,30 @@ void Application::run()
             projection * view
         );
 
-        world.update();
+        world.updateAroundPlayer(
+            camera.getPosition(),
+            camera.getForward(),
+            deltaTime
+        );
+
+        world.update(deltaTime);
+
+        if (debugController.areStreamingStatsEnabled())
+        {
+            streamingDebugTimer += deltaTime;
+
+            if (streamingDebugTimer >=
+                STREAMING_DEBUG_INTERVAL)
+            {
+                world.printStreamingDebugStats();
+
+                streamingDebugTimer = 0.0f;
+            }
+        }
+        else
+        {
+            streamingDebugTimer = 0.0f;
+        }
 
         if (autosaveTimer >= AUTOSAVE_INTERVAL)
         {
@@ -263,12 +282,10 @@ void Application::run()
         }
 
         bool wireframeEnabled =
-            debugController
-            .isWireframeEnabled();
+            debugController.isWireframeEnabled();
 
         bool chunkBordersEnabled =
-            debugController
-            .areChunkBordersEnabled();
+            debugController.areChunkBordersEnabled();
 
         glClearColor(
             0.08f,
@@ -292,6 +309,30 @@ void Application::run()
         shader.setMat4(
             "uView",
             &view[0][0]
+        );
+
+        shader.setVec3(
+            "uCameraPosition",
+            camera.getPosition().x,
+            camera.getPosition().y,
+            camera.getPosition().z
+        );
+
+        shader.setVec3(
+            "uFogColor",
+            0.08f,
+            0.10f,
+            0.14f
+        );
+
+        shader.setFloat(
+            "uFogStart",
+            96.0f
+        );
+
+        shader.setFloat(
+            "uFogEnd",
+            192.0f
         );
 
         resources
@@ -324,15 +365,14 @@ void Application::run()
                 view
             );
         }
-         
+
         if (selectedBlock.hit)
         {
-            blockSelectionRenderer
-                .drawBlockOutline(
-                    selectedBlock.blockPosition,
-                    projection,
-                    view
-                );
+            blockSelectionRenderer.drawBlockOutline(
+                selectedBlock.blockPosition,
+                projection,
+                view
+            );
         }
 
         hudRenderer.draw(

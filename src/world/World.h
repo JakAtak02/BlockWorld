@@ -2,20 +2,16 @@
 
 #include "renderer/DebugRenderer.h"
 #include "renderer/Frustum.h"
-#include "renderer/Mesh.h"
 
 #include "world/Chunk.h"
-#include "world/ChunkCoord.h"
-
+#include "world/ChunkManager.h"
 #include "world/generation/TerrainGenerator.h"
-
 #include "world/save/WorldSaveManager.h"
 
 #include <glm/glm.hpp>
 
-#include <memory>
+#include <deque>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 struct BlockRaycastHit
@@ -23,7 +19,6 @@ struct BlockRaycastHit
     bool hit = false;
 
     glm::ivec3 blockPosition{ 0 };
-
     glm::ivec3 previousBlockPosition{ 0 };
 
     uint16_t blockId = 0;
@@ -33,29 +28,24 @@ struct BlockRaycastHit
 
 class World
 {
-private:
-    struct ChunkRenderData
-    {
-        Chunk chunk;
-
-        std::unique_ptr<Mesh> mesh;
-
-        int chunkX = 0;
-        int chunkZ = 0;
-
-        glm::vec3 minBounds;
-
-        glm::vec3 maxBounds;
-    };
-
 public:
     World(
         const std::vector<BlockRenderInfo>& renderInfo
     );
 
-    void update();
+    void updateAroundPlayer(
+        const glm::vec3& playerPosition,
+        const glm::vec3& playerForward,
+        float deltaTime
+    );
+
+    void update(
+        float deltaTime
+    );
 
     void saveWorld();
+
+    void printStreamingDebugStats() const;
 
     uint16_t getBlock(
         int worldX,
@@ -98,26 +88,40 @@ private:
         int divisor
     );
 
-    ChunkRenderData* findChunk(
-        int chunkX,
-        int chunkZ
+    static int calculateChunkLoadBudget(
+        float deltaTime
     );
 
-    const ChunkRenderData* findChunk(
-        int chunkX,
-        int chunkZ
-    ) const;
+    static int calculateMeshRebuildBudget(
+        float deltaTime
+    );
 
     void rebuildChunkMesh(
         ChunkRenderData& chunkData
     );
 
+    void enqueueMeshRebuild(
+        int chunkX,
+        int chunkZ
+    );
+
+    void processMeshRebuildQueue(
+        int maxMeshRebuilds
+    );
+
+    bool isMeshRebuildQueued(
+        int chunkX,
+        int chunkZ
+    ) const;
+
 private:
-    std::unordered_map<
-        ChunkCoord,
-        ChunkRenderData,
-        ChunkCoordHash
-    > m_chunks;
+    ChunkManager m_chunkManager;
+
+    std::deque<ChunkCoord>
+        m_pendingMeshRebuilds;
+
+    glm::vec3
+        m_lastPlayerPosition{ 0.0f };
 
     std::vector<BlockRenderInfo>
         m_renderInfo;

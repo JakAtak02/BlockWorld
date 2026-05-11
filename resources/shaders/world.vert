@@ -8,11 +8,13 @@ uniform mat4 uProjection;
 uniform mat4 uView;
 
 out vec2 vTexCoord;
+out vec3 vWorldPosition;
 flat out float vTextureIndex;
 
 void main()
 {
     vTexCoord = aTexCoord;
+    vWorldPosition = aPos;
     vTextureIndex = aTextureIndex;
 
     gl_Position =

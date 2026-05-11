@@ -15,96 +15,86 @@ World::World(
 {
     m_saveManager.initialize();
 
-    for (int chunkZ = -1; chunkZ <= 1; chunkZ++)
-    {
-        for (int chunkX = -1; chunkX <= 1; chunkX++)
-        {
-            ChunkRenderData data;
+    m_chunkManager.loadInitialChunks(
+        m_terrainGenerator,
+        m_saveManager
+    );
 
-            data.chunkX = chunkX;
-            data.chunkZ = chunkZ;
-
-            data.minBounds = glm::vec3(
-                static_cast<float>(
-                    chunkX * Chunk::SIZE
-                    ),
-                0.0f,
-                static_cast<float>(
-                    chunkZ * Chunk::SIZE
-                    )
-            );
-
-            data.maxBounds = glm::vec3(
-                data.minBounds.x +
-                static_cast<float>(
-                    Chunk::SIZE
-                    ),
-
-                static_cast<float>(
-                    Chunk::SIZE
-                    ),
-
-                data.minBounds.z +
-                static_cast<float>(
-                    Chunk::SIZE
-                    )
-            );
-
-            if (!m_saveManager.loadChunk(
-                data.chunk,
-                chunkX,
-                chunkZ
-            ))
-            {
-                m_terrainGenerator.generateChunk(
-                    data.chunk,
-                    chunkX,
-                    chunkZ
-                );
-
-                m_saveManager.saveChunk(
-                    data.chunk,
-                    chunkX,
-                    chunkZ
-                );
-
-                data.chunk.clearSaveDirty();
-            }
-
-            ChunkCoord coord
-            {
-                chunkX,
-                chunkZ
-            };
-
-            m_chunks.emplace(
-                coord,
-                std::move(data)
-            );
-        }
-    }
-
-    for (auto& [coord, data] : m_chunks)
+    for (auto& [coord, data] :
+        m_chunkManager.getChunks())
     {
         rebuildChunkMesh(data);
 
         data.chunk.clearMeshDirty();
+
+        m_chunkManager.setChunkState(
+            coord.x,
+            coord.z,
+            ChunkStreamingState::ReadyToRender
+        );
     }
 }
 
-void World::update()
+void World::update(
+    float deltaTime
+)
 {
-    for (auto& [coord, data] : m_chunks)
+    int meshRebuildBudget =
+        calculateMeshRebuildBudget(deltaTime);
+
+    for (auto& [coord, data] :
+        m_chunkManager.getChunks())
     {
         if (!data.chunk.isMeshDirty())
         {
             continue;
         }
 
-        rebuildChunkMesh(data);
-
-        data.chunk.clearMeshDirty();
+        enqueueMeshRebuild(
+            coord.x,
+            coord.z
+        );
     }
+
+    processMeshRebuildQueue(
+        meshRebuildBudget
+    );
+}
+
+void World::updateAroundPlayer(
+    const glm::vec3& playerPosition,
+    const glm::vec3& playerForward,
+    float deltaTime
+)
+{
+    constexpr int LOAD_RADIUS_CHUNKS = 4;
+    constexpr int UNLOAD_RADIUS_CHUNKS = 5;
+
+    int chunkLoadBudget =
+        calculateChunkLoadBudget(deltaTime);
+
+    m_lastPlayerPosition =
+        playerPosition;
+
+    m_chunkManager.ensureChunksAroundPosition(
+        playerPosition,
+        playerForward,
+        LOAD_RADIUS_CHUNKS,
+        m_terrainGenerator,
+        m_saveManager
+    );
+
+    m_chunkManager.unloadChunksFarFromPosition(
+        playerPosition,
+        UNLOAD_RADIUS_CHUNKS,
+        m_saveManager
+    );
+
+    m_chunkManager.processChunkLoadQueue(
+        chunkLoadBudget,
+        m_terrainGenerator,
+        m_saveManager
+    );
 }
 
 uint16_t World::getBlock(
@@ -132,7 +122,10 @@ uint16_t World::getBlock(
         positiveMod(worldZ, Chunk::SIZE);
 
     const ChunkRenderData* data =
-        findChunk(chunkX, chunkZ);
+        m_chunkManager.findChunk(
+            chunkX,
+            chunkZ
+        );
 
     if (!data)
     {
@@ -172,7 +165,12 @@ void World::setBlock(
         positiveMod(worldZ, Chunk::SIZE);
 
     ChunkRenderData* data =
-        findChunk(chunkX, chunkZ);
+        m_chunkManager.getOrCreateChunk(
+            chunkX,
+            chunkZ,
+            m_terrainGenerator,
+            m_saveManager
+        );
 
     if (!data)
     {
@@ -186,51 +184,81 @@ void World::setBlock(
         blockId
     );
 
+    m_chunkManager.setChunkState(
+        chunkX,
+        chunkZ,
+        ChunkStreamingState::MeshQueued
+    );
+
     if (localX == 0)
     {
         if (ChunkRenderData* neighbor =
-            findChunk(
+            m_chunkManager.findChunk(
                 chunkX - 1,
                 chunkZ
             ))
         {
             neighbor->chunk.markMeshDirty();
+
+            m_chunkManager.setChunkState(
+                chunkX - 1,
+                chunkZ,
+                ChunkStreamingState::MeshQueued
+            );
         }
     }
 
     if (localX == Chunk::SIZE - 1)
     {
         if (ChunkRenderData* neighbor =
-            findChunk(
+            m_chunkManager.findChunk(
                 chunkX + 1,
                 chunkZ
             ))
         {
             neighbor->chunk.markMeshDirty();
+
+            m_chunkManager.setChunkState(
+                chunkX + 1,
+                chunkZ,
+                ChunkStreamingState::MeshQueued
+            );
         }
     }
 
     if (localZ == 0)
     {
         if (ChunkRenderData* neighbor =
-            findChunk(
+            m_chunkManager.findChunk(
                 chunkX,
                 chunkZ - 1
             ))
         {
             neighbor->chunk.markMeshDirty();
+
+            m_chunkManager.setChunkState(
+                chunkX,
+                chunkZ - 1,
+                ChunkStreamingState::MeshQueued
+            );
         }
     }
 
     if (localZ == Chunk::SIZE - 1)
     {
         if (ChunkRenderData* neighbor =
-            findChunk(
+            m_chunkManager.findChunk(
                 chunkX,
                 chunkZ + 1
             ))
         {
             neighbor->chunk.markMeshDirty();
+
+            m_chunkManager.setChunkState(
+                chunkX,
+                chunkZ + 1,
+                ChunkStreamingState::MeshQueued
+            );
         }
     }
 }
@@ -414,8 +442,15 @@ void World::draw(
     const Frustum& frustum
 ) const
 {
-    for (const auto& [coord, data] : m_chunks)
+    for (const auto& [coord, data] :
+        m_chunkManager.getChunks())
     {
+        if (data.streamingState !=
+            ChunkStreamingState::ReadyToRender)
+        {
+            continue;
+        }
+
         if (!frustum.isBoxVisible(
             data.minBounds,
             data.maxBounds
@@ -439,7 +474,8 @@ void World::drawChunkBorders(
     const glm::mat4& view
 ) const
 {
-    for (const auto& [coord, data] : m_chunks)
+    for (const auto& [coord, data] :
+        m_chunkManager.getChunks())
     {
         debugRenderer.drawChunkBorder(
             data.minBounds,
@@ -484,48 +520,178 @@ int World::positiveMod(
     return result;
 }
 
-World::ChunkRenderData*
-World::findChunk(
+int World::calculateChunkLoadBudget(
+    float deltaTime
+)
+{
+    if (deltaTime <= 0.012f)
+    {
+        return 4;
+    }
+
+    if (deltaTime <= 0.018f)
+    {
+        return 2;
+    }
+
+    return 1;
+}
+
+int World::calculateMeshRebuildBudget(
+    float deltaTime
+)
+{
+    if (deltaTime <= 0.012f)
+    {
+        return 4;
+    }
+
+    if (deltaTime <= 0.018f)
+    {
+        return 2;
+    }
+
+    return 1;
+}
+
+void World::enqueueMeshRebuild(
     int chunkX,
     int chunkZ
 )
 {
-    auto it =
-        m_chunks.find(
-            ChunkCoord{
-                chunkX,
-                chunkZ
-            }
-        );
-
-    if (it == m_chunks.end())
+    if (isMeshRebuildQueued(chunkX, chunkZ))
     {
-        return nullptr;
+        return;
     }
 
-    return &it->second;
+    m_pendingMeshRebuilds.push_back(
+        ChunkCoord
+        {
+            chunkX,
+            chunkZ
+        }
+    );
 }
 
-const World::ChunkRenderData*
-World::findChunk(
+void World::processMeshRebuildQueue(
+    int maxMeshRebuilds
+)
+{
+    int playerChunkX =
+        floorDiv(
+            static_cast<int>(
+                std::floor(
+                    m_lastPlayerPosition.x
+                )
+                ),
+            Chunk::SIZE
+        );
+
+    int playerChunkZ =
+        floorDiv(
+            static_cast<int>(
+                std::floor(
+                    m_lastPlayerPosition.z
+                )
+                ),
+            Chunk::SIZE
+        );
+
+    std::sort(
+        m_pendingMeshRebuilds.begin(),
+        m_pendingMeshRebuilds.end(),
+        [playerChunkX, playerChunkZ](
+            const ChunkCoord& left,
+            const ChunkCoord& right
+            )
+        {
+            int leftDistanceX =
+                left.x - playerChunkX;
+
+            int leftDistanceZ =
+                left.z - playerChunkZ;
+
+            int rightDistanceX =
+                right.x - playerChunkX;
+
+            int rightDistanceZ =
+                right.z - playerChunkZ;
+
+            int leftDistanceSquared =
+                leftDistanceX * leftDistanceX +
+                leftDistanceZ * leftDistanceZ;
+
+            int rightDistanceSquared =
+                rightDistanceX * rightDistanceX +
+                rightDistanceZ * rightDistanceZ;
+
+            return leftDistanceSquared <
+                rightDistanceSquared;
+        }
+    );
+
+    int meshesRebuilt = 0;
+
+    while (!m_pendingMeshRebuilds.empty() &&
+        meshesRebuilt < maxMeshRebuilds)
+    {
+        ChunkCoord coord =
+            m_pendingMeshRebuilds.front();
+
+        m_pendingMeshRebuilds.pop_front();
+
+        ChunkRenderData* data =
+            m_chunkManager.findChunk(
+                coord.x,
+                coord.z
+            );
+
+        if (!data)
+        {
+            continue;
+        }
+
+        if (!data->chunk.isMeshDirty())
+        {
+            continue;
+        }
+
+        m_chunkManager.setChunkState(
+            coord.x,
+            coord.z,
+            ChunkStreamingState::Meshing
+        );
+
+        rebuildChunkMesh(*data);
+
+        data->chunk.clearMeshDirty();
+
+        m_chunkManager.setChunkState(
+            coord.x,
+            coord.z,
+            ChunkStreamingState::ReadyToRender
+        );
+
+        meshesRebuilt++;
+    }
+}
+
+bool World::isMeshRebuildQueued(
     int chunkX,
     int chunkZ
 ) const
 {
-    auto it =
-        m_chunks.find(
-            ChunkCoord{
-                chunkX,
-                chunkZ
-            }
-        );
-
-    if (it == m_chunks.end())
+    for (const ChunkCoord& coord :
+        m_pendingMeshRebuilds)
     {
-        return nullptr;
+        if (coord.x == chunkX &&
+            coord.z == chunkZ)
+        {
+            return true;
+        }
     }
 
-    return &it->second;
+    return false;
 }
 
 void World::rebuildChunkMesh(
@@ -565,17 +731,78 @@ void World::rebuildChunkMesh(
             blockLookup
         );
 
-    // Chunk rebuild debug logging disabled.
-
     data.mesh =
         std::make_unique<Mesh>(
             vertices
         );
 }
 
+void World::printStreamingDebugStats() const
+{
+    int loadingCount = 0;
+    int loadedCount = 0;
+    int meshQueuedCount = 0;
+    int meshingCount = 0;
+    int readyToRenderCount = 0;
+    int unloadPendingCount = 0;
+
+    for (const auto& [coord, data] :
+        m_chunkManager.getChunks())
+    {
+        switch (data.streamingState)
+        {
+        case ChunkStreamingState::Loading:
+            loadingCount++;
+            break;
+
+        case ChunkStreamingState::Loaded:
+            loadedCount++;
+            break;
+
+        case ChunkStreamingState::MeshQueued:
+            meshQueuedCount++;
+            break;
+
+        case ChunkStreamingState::Meshing:
+            meshingCount++;
+            break;
+
+        case ChunkStreamingState::ReadyToRender:
+            readyToRenderCount++;
+            break;
+
+        case ChunkStreamingState::UnloadPending:
+            unloadPendingCount++;
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    std::cout
+        << "[Streaming] "
+        << "PendingLoads: "
+        << m_chunkManager.getPendingChunkLoadCount()
+        << " | Loading: "
+        << loadingCount
+        << " | Loaded: "
+        << loadedCount
+        << " | MeshQueued: "
+        << meshQueuedCount
+        << " | Meshing: "
+        << meshingCount
+        << " | Ready: "
+        << readyToRenderCount
+        << " | UnloadPending: "
+        << unloadPendingCount
+        << std::endl;
+}
+
 void World::saveWorld()
 {
-    for (auto& [coord, data] : m_chunks)
+    for (auto& [coord, data] :
+        m_chunkManager.getChunks())
     {
         if (!data.chunk.isSaveDirty())
         {

@@ -171,3 +171,41 @@ void Shader::setMat4(
         value
     );
 }
+
+void Shader::setVec3(
+    const char* name,
+    float x,
+    float y,
+    float z
+) const
+{
+    int loc =
+        glGetUniformLocation(
+            m_program,
+            name
+        );
+
+    glUniform3f(
+        loc,
+        x,
+        y,
+        z
+    );
+}
+
+void Shader::setFloat(
+    const char* name,
+    float value
+) const
+{
+    int loc =
+        glGetUniformLocation(
+            m_program,
+            name
+        );
+
+    glUniform1f(
+        loc,
+        value
+    );
+}

@@ -15,7 +15,7 @@ void DebugController::update(GLFWwindow* window)
             static_cast<int>(m_mode) + 1;
 
         if (nextMode >
-            static_cast<int>(Mode::ChunkBordersAndWireframe))
+            static_cast<int>(Mode::StreamingStats))
         {
             nextMode =
                 static_cast<int>(Mode::Off);
@@ -45,6 +45,11 @@ bool DebugController::areChunkBordersEnabled() const
         m_mode == Mode::ChunkBordersAndWireframe;
 }
 
+bool DebugController::areStreamingStatsEnabled() const
+{
+    return m_mode == Mode::StreamingStats;
+}
+
 const char* DebugController::modeToString(Mode mode)
 {
     switch (mode)
@@ -57,6 +62,8 @@ const char* DebugController::modeToString(Mode mode)
         return "WIREFRAME";
     case Mode::ChunkBordersAndWireframe:
         return "CHUNK BORDERS + WIREFRAME";
+    case Mode::StreamingStats:
+        return "STREAMING STATS";
     default:
         return "UNKNOWN";
     }

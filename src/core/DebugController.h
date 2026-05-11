@@ -9,6 +9,7 @@ public:
 
     bool isWireframeEnabled() const;
     bool areChunkBordersEnabled() const;
+    bool areStreamingStatsEnabled() const;
 
 private:
     enum class Mode
@@ -16,7 +17,8 @@ private:
         Off = 0,
         ChunkBorders = 1,
         Wireframe = 2,
-        ChunkBordersAndWireframe = 3
+        ChunkBordersAndWireframe = 3,
+        StreamingStats = 4
     };
 
 private:
