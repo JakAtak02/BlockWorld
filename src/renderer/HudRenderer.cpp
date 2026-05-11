@@ -434,10 +434,7 @@ bool HudRenderer::loadTexture2D(
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    std::cout
-        << "Loaded HUD texture: "
-        << texturePath
-        << std::endl;
+    // HUD texture debug logging disabled.
 
     return true;
 }
@@ -475,7 +472,7 @@ bool HudRenderer::loadHotbarTexture(const char* path)
 void HudRenderer::draw(
     int screenWidth,
     int screenHeight,
-    const Texture2D& blockTextureArray,
+    const TextureArray& blockTextureArray,
     const std::vector<BlockRenderInfo>& renderInfo,
     uint16_t selectedBlockId
 )
@@ -630,7 +627,7 @@ void HudRenderer::drawBlockIcon3D(
     float centerX,
     float centerY,
     uint16_t blockId,
-    const Texture2D& blockTextureArray,
+    const TextureArray& blockTextureArray,
     const std::vector<BlockRenderInfo>& renderInfo
 )
 {

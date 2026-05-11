@@ -34,28 +34,36 @@ public:
 
     Chunk();
 
-    void generateTerrain(int chunkX, int chunkZ);
-
-    bool saveToFile(
-        const std::string& path,
-        int chunkX,
-        int chunkZ
+    uint16_t getBlock(
+        int x,
+        int y,
+        int z
     ) const;
 
-    bool loadFromFile(
-        const std::string& path
+    void setBlock(
+        int x,
+        int y,
+        int z,
+        uint16_t blockId
     );
 
-    uint16_t getBlock(int x, int y, int z) const;
+    const std::vector<uint16_t>&
+        getBlocks() const;
 
-    void setBlock(int x, int y, int z, uint16_t blockId);
+    void setBlocks(
+        const std::vector<uint16_t>& blocks
+    );
 
     bool isMeshDirty() const;
+
     void markMeshDirty();
+
     void clearMeshDirty();
 
     bool isSaveDirty() const;
+
     void markSaveDirty();
+
     void clearSaveDirty();
 
     std::vector<float> buildMesh(
@@ -65,23 +73,10 @@ public:
     ) const;
 
 private:
-    int index(int x, int y, int z) const;
-
-    bool isAir(int x, int y, int z) const;
-
-    float getTextureIndexForFace(
-        uint16_t blockId,
-        int face,
-        const std::vector<BlockRenderInfo>& renderInfo
-    ) const;
-
-    void addFace(
-        std::vector<float>& vertices,
+    int index(
         int x,
         int y,
-        int z,
-        int face,
-        float textureIndex
+        int z
     ) const;
 
 private:
@@ -89,5 +84,6 @@ private:
         std::vector<uint16_t>(VOLUME, 0);
 
     bool m_meshDirty = true;
+
     bool m_saveDirty = false;
 };

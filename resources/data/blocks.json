@@ -1,0 +1,12 @@
+{
+  "blocks": [
+    "resources/data/blocks/stone.json",
+    "resources/data/blocks/dirt.json",
+    "resources/data/blocks/sand.json",
+    "resources/data/blocks/grass_block.json",
+    "resources/data/blocks/cobblestone.json",
+    "resources/data/blocks/oak_planks.json",
+    "resources/data/blocks/iron_ore.json",
+    "resources/data/blocks/oak_log.json"
+  ]
+}

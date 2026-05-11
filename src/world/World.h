@@ -3,7 +3,13 @@
 #include "renderer/DebugRenderer.h"
 #include "renderer/Frustum.h"
 #include "renderer/Mesh.h"
+
 #include "world/Chunk.h"
+#include "world/ChunkCoord.h"
+
+#include "world/generation/TerrainGenerator.h"
+
+#include "world/save/WorldSaveManager.h"
 
 #include <glm/glm.hpp>
 
@@ -17,51 +23,35 @@ struct BlockRaycastHit
     bool hit = false;
 
     glm::ivec3 blockPosition{ 0 };
+
     glm::ivec3 previousBlockPosition{ 0 };
 
     uint16_t blockId = 0;
+
     float distance = 0.0f;
 };
 
 class World
 {
 private:
-    struct ChunkCoord
-    {
-        int x = 0;
-        int z = 0;
-
-        bool operator==(const ChunkCoord& other) const
-        {
-            return x == other.x && z == other.z;
-        }
-    };
-
-    struct ChunkCoordHash
-    {
-        std::size_t operator()(const ChunkCoord& coord) const
-        {
-            std::size_t h1 = std::hash<int>{}(coord.x);
-            std::size_t h2 = std::hash<int>{}(coord.z);
-
-            return h1 ^ (h2 << 1);
-        }
-    };
-
     struct ChunkRenderData
     {
         Chunk chunk;
+
         std::unique_ptr<Mesh> mesh;
 
         int chunkX = 0;
         int chunkZ = 0;
 
         glm::vec3 minBounds;
+
         glm::vec3 maxBounds;
     };
 
 public:
-    World(const std::vector<BlockRenderInfo>& renderInfo);
+    World(
+        const std::vector<BlockRenderInfo>& renderInfo
+    );
 
     void update();
 
@@ -87,7 +77,9 @@ public:
         BlockRaycastHit& hit
     ) const;
 
-    void draw(const Frustum& frustum) const;
+    void draw(
+        const Frustum& frustum
+    ) const;
 
     void drawChunkBorders(
         DebugRenderer& debugRenderer,
@@ -96,9 +88,15 @@ public:
     ) const;
 
 private:
-    static int floorDiv(int value, int divisor);
+    static int floorDiv(
+        int value,
+        int divisor
+    );
 
-    static int positiveMod(int value, int divisor);
+    static int positiveMod(
+        int value,
+        int divisor
+    );
 
     ChunkRenderData* findChunk(
         int chunkX,
@@ -114,17 +112,6 @@ private:
         ChunkRenderData& chunkData
     );
 
-    std::string getWorldSavePath() const;
-
-    std::string getChunkSavePath(
-        int chunkX,
-        int chunkZ
-    ) const;
-
-    void createWorldMetadataFile() const;
-
-    bool worldMetadataExists() const;
-
 private:
     std::unordered_map<
         ChunkCoord,
@@ -132,11 +119,23 @@ private:
         ChunkCoordHash
     > m_chunks;
 
-    std::vector<BlockRenderInfo> m_renderInfo;
+    std::vector<BlockRenderInfo>
+        m_renderInfo;
 
-    std::string m_worldName = "World_0";
+    TerrainGenerator
+        m_terrainGenerator;
+
+    std::string m_worldName =
+        "World_0";
 
     uint32_t m_worldVersion = 1;
 
     uint32_t m_worldSeed = 12345;
+
+    WorldSaveManager m_saveManager
+    {
+        m_worldName,
+        m_worldVersion,
+        m_worldSeed
+    };
 };

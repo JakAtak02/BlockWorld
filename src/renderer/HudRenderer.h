@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer/Texture2D.h"
+#include "renderer/TextureArray.h"
 #include "world/Chunk.h"
 
 #include <cstdint>
@@ -23,7 +23,7 @@ public:
     void draw(
         int screenWidth,
         int screenHeight,
-        const Texture2D& blockTextureArray,
+        const TextureArray& blockTextureArray,
         const std::vector<BlockRenderInfo>& renderInfo,
         uint16_t selectedBlockId
     );
@@ -68,18 +68,11 @@ private:
         float height
     );
 
-    void drawSelectedSlotOutline(
-        float x,
-        float y,
-        float width,
-        float height
-    );
-
     void drawBlockIcon3D(
         float centerX,
         float centerY,
         uint16_t blockId,
-        const Texture2D& blockTextureArray,
+        const TextureArray& blockTextureArray,
         const std::vector<BlockRenderInfo>& renderInfo
     );
 

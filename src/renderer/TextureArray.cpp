@@ -1,4 +1,4 @@
-#include "renderer/Texture2D.h"
+#include "renderer/TextureArray.h"
 
 #include <glad/glad.h>
 
@@ -7,12 +7,12 @@
 
 #include <iostream>
 
-Texture2D::Texture2D()
+TextureArray::TextureArray()
 {
     glGenTextures(1, &m_textureId);
 }
 
-Texture2D::~Texture2D()
+TextureArray::~TextureArray()
 {
     if (m_textureId != 0)
     {
@@ -20,17 +20,25 @@ Texture2D::~Texture2D()
     }
 }
 
-bool Texture2D::loadArrayFromFiles(const std::vector<std::string>& paths)
+bool TextureArray::loadArrayFromFiles(
+    const std::vector<std::string>& paths
+)
 {
     if (paths.empty())
     {
-        std::cout << "Texture array path list is empty." << std::endl;
+        std::cout
+            << "Texture array path list is empty."
+            << std::endl;
+
         return false;
     }
 
     stbi_set_flip_vertically_on_load(true);
 
-    glBindTexture(GL_TEXTURE_2D_ARRAY, m_textureId);
+    glBindTexture(
+        GL_TEXTURE_2D_ARRAY,
+        m_textureId
+    );
 
     for (size_t layer = 0; layer < paths.size(); layer++)
     {
@@ -48,7 +56,11 @@ bool Texture2D::loadArrayFromFiles(const std::vector<std::string>& paths)
 
         if (!data)
         {
-            std::cout << "Failed to load texture: " << paths[layer] << std::endl;
+            std::cout
+                << "Failed to load texture: "
+                << paths[layer]
+                << std::endl;
+
             return false;
         }
 
@@ -56,7 +68,9 @@ bool Texture2D::loadArrayFromFiles(const std::vector<std::string>& paths)
         {
             m_width = width;
             m_height = height;
-            m_layers = static_cast<int>(paths.size());
+
+            m_layers =
+                static_cast<int>(paths.size());
 
             glTexImage3D(
                 GL_TEXTURE_2D_ARRAY,
@@ -73,11 +87,20 @@ bool Texture2D::loadArrayFromFiles(const std::vector<std::string>& paths)
         }
         else
         {
-            if (width != m_width || height != m_height)
+            if (width != m_width ||
+                height != m_height)
             {
-                std::cout << "Texture array size mismatch: " << paths[layer] << std::endl;
-                std::cout << "All block textures must be the same size." << std::endl;
+                std::cout
+                    << "Texture array size mismatch: "
+                    << paths[layer]
+                    << std::endl;
+
+                std::cout
+                    << "All block textures must be the same size."
+                    << std::endl;
+
                 stbi_image_free(data);
+
                 return false;
             }
         }
@@ -98,22 +121,49 @@ bool Texture2D::loadArrayFromFiles(const std::vector<std::string>& paths)
 
         stbi_image_free(data);
 
-        std::cout << "Loaded texture array layer " << layer << ": " << paths[layer] << std::endl;
+        std::cout
+            << "Loaded texture array layer "
+            << layer
+            << ": "
+            << paths[layer]
+            << std::endl;
     }
 
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(
+        GL_TEXTURE_2D_ARRAY,
+        GL_TEXTURE_MIN_FILTER,
+        GL_NEAREST
+    );
 
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(
+        GL_TEXTURE_2D_ARRAY,
+        GL_TEXTURE_MAG_FILTER,
+        GL_NEAREST
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D_ARRAY,
+        GL_TEXTURE_WRAP_S,
+        GL_REPEAT
+    );
+
+    glTexParameteri(
+        GL_TEXTURE_2D_ARRAY,
+        GL_TEXTURE_WRAP_T,
+        GL_REPEAT
+    );
 
     glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
     return true;
 }
 
-void Texture2D::bind(unsigned int slot) const
+void TextureArray::bind(unsigned int slot) const
 {
     glActiveTexture(GL_TEXTURE0 + slot);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, m_textureId);
+
+    glBindTexture(
+        GL_TEXTURE_2D_ARRAY,
+        m_textureId
+    );
 }

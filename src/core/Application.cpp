@@ -1,4 +1,9 @@
 #include "core/Application.h"
+
+#include "core/DebugController.h"
+#include "core/ResourceManager.h"
+#include "core/InputManager.h"
+
 #include "player/Player.h"
 
 #include "renderer/BlockSelectionRenderer.h"
@@ -6,9 +11,7 @@
 #include "renderer/Frustum.h"
 #include "renderer/HudRenderer.h"
 #include "renderer/Shader.h"
-#include "renderer/Texture2D.h"
 
-#include "world/BlockRegistry.h"
 #include "world/World.h"
 
 #include <glad/glad.h>
@@ -18,30 +21,8 @@
 #include <string>
 #include <vector>
 
-enum class DebugViewMode
-{
-    Off = 0,
-    ChunkBorders = 1,
-    Wireframe = 2,
-    ChunkBordersAndWireframe = 3
-};
-
-static const char* debugViewModeToString(DebugViewMode mode)
-{
-    switch (mode)
-    {
-    case DebugViewMode::Off:
-        return "OFF";
-    case DebugViewMode::ChunkBorders:
-        return "CHUNK BORDERS";
-    case DebugViewMode::Wireframe:
-        return "WIREFRAME";
-    case DebugViewMode::ChunkBordersAndWireframe:
-        return "CHUNK BORDERS + WIREFRAME";
-    default:
-        return "UNKNOWN";
-    }
-}
+static constexpr int WINDOW_WIDTH = 1280;
+static constexpr int WINDOW_HEIGHT = 720;
 
 Application::Application()
 {
@@ -57,7 +38,11 @@ Application::Application()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    m_window = new Window(1280, 720, "BlockWorld");
+    m_window = new Window(
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        "BlockWorld"
+    );
 
     if (!m_window->getNativeWindow())
     {
@@ -66,6 +51,7 @@ Application::Application()
     }
 
     glfwMakeContextCurrent(m_window->getNativeWindow());
+
     glfwSwapInterval(1);
 
     glfwSetInputMode(
@@ -74,13 +60,18 @@ Application::Application()
         GLFW_CURSOR_DISABLED
     );
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    if (!gladLoadGLLoader(
+        (GLADloadproc)glfwGetProcAddress))
     {
-        std::cout << "Failed to initialize GLAD." << std::endl;
+        std::cout
+            << "Failed to initialize GLAD."
+            << std::endl;
+
         return;
     }
 
-    std::cout << "OpenGL Version: "
+    std::cout
+        << "OpenGL Version: "
         << glGetString(GL_VERSION)
         << std::endl;
 }
@@ -88,6 +79,7 @@ Application::Application()
 Application::~Application()
 {
     delete m_window;
+
     glfwTerminate();
 }
 
@@ -95,41 +87,24 @@ void Application::run()
 {
     glEnable(GL_DEPTH_TEST);
 
-    BlockRegistry registry;
+    ResourceManager resources;
 
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/stone.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/dirt.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/sand.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/grass_block.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/cobblestone.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/oak_planks.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/iron_ore.json")) return;
-    if (!registry.loadBlockFromJson("resources/data/textures/blocks/oak_log.json")) return;
-
-    Texture2D textures;
-
-    std::vector<std::string> texturePaths;
-
-    for (const std::string& path : registry.getTexturePaths())
-    {
-        texturePaths.push_back(
-            "resources/" + path
-        );
-    }
-
-    if (!textures.loadArrayFromFiles(texturePaths))
+    if (!resources.initialize())
     {
         return;
     }
 
-    std::vector<BlockRenderInfo> renderInfo =
-        registry.buildRenderInfo();
-
-    World world(renderInfo);
+    World world(
+        resources.getBlockRenderInfo()
+    );
 
     DebugRenderer debugRenderer;
-    BlockSelectionRenderer blockSelectionRenderer;
+
+    BlockSelectionRenderer
+        blockSelectionRenderer;
+
     HudRenderer hudRenderer;
+
     Frustum frustum;
 
     if (!hudRenderer.loadHotbarTextureFromJson(
@@ -138,76 +113,33 @@ void Application::run()
         return;
     }
 
-    if (!hudRenderer.loadHotbarSelectionTextureFromJson(
-        "resources/data/textures/gui/hud/hotbar_selection.json"))
+    if (!hudRenderer
+        .loadHotbarSelectionTextureFromJson(
+            "resources/data/textures/gui/hud/hotbar_selection.json"))
     {
         return;
     }
 
-    DebugViewMode debugMode = DebugViewMode::Off;
-    bool f3WasPressed = false;
+    DebugController debugController;
+    InputManager inputManager;
 
-    const char* vs = R"(
-        #version 460 core
-
-        layout (location = 0) in vec3 aPos;
-        layout (location = 1) in vec2 aTexCoord;
-        layout (location = 2) in float aTextureIndex;
-
-        uniform mat4 uProjection;
-        uniform mat4 uView;
-
-        out vec2 vTexCoord;
-        flat out float vTextureIndex;
-
-        void main()
-        {
-            vTexCoord = aTexCoord;
-            vTextureIndex = aTextureIndex;
-
-            gl_Position =
-                uProjection *
-                uView *
-                vec4(aPos, 1.0);
-        }
-    )";
-
-    const char* fs = R"(
-        #version 460 core
-
-        in vec2 vTexCoord;
-        flat in float vTextureIndex;
-
-        uniform sampler2DArray uTextureArray;
-
-        out vec4 FragColor;
-
-        void main()
-        {
-            FragColor =
-                texture(
-                    uTextureArray,
-                    vec3(vTexCoord, vTextureIndex)
-                );
-        }
-    )";
-
-    Shader shader(vs, fs);
+    Shader shader =
+        Shader::fromFiles(
+            "resources/shaders/world.vert",
+            "resources/shaders/world.frag"
+        );
 
     Player player;
 
     float lastFrameTime = 0.0f;
-
-    bool firstMouse = true;
-    double lastMouseX = 640.0;
-    double lastMouseY = 360.0;
 
     float fpsTimer = 0.0f;
     int fpsCounter = 0;
 
     float autosaveTimer = 0.0f;
 
-    constexpr float AUTOSAVE_INTERVAL = 300.0f;
+    constexpr float AUTOSAVE_INTERVAL =
+        300.0f;
 
     while (!m_window->shouldClose())
     {
@@ -227,31 +159,7 @@ void Application::run()
         GLFWwindow* nativeWindow =
             m_window->getNativeWindow();
 
-        bool f3Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_F3) == GLFW_PRESS;
-
-        if (f3Pressed && !f3WasPressed)
-        {
-            int nextMode =
-                static_cast<int>(debugMode) + 1;
-
-            if (nextMode >
-                static_cast<int>(DebugViewMode::ChunkBordersAndWireframe))
-            {
-                nextMode =
-                    static_cast<int>(DebugViewMode::Off);
-            }
-
-            debugMode =
-                static_cast<DebugViewMode>(nextMode);
-
-            std::cout
-                << "Debug mode: "
-                << debugViewModeToString(debugMode)
-                << std::endl;
-        }
-
-        f3WasPressed = f3Pressed;
+        debugController.update(nativeWindow);
 
         if (fpsTimer >= 1.0f)
         {
@@ -268,90 +176,32 @@ void Application::run()
             fpsTimer = 0.0f;
         }
 
-        if (glfwGetKey(nativeWindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        if (glfwGetKey(
+            nativeWindow,
+            GLFW_KEY_ESCAPE) == GLFW_PRESS)
         {
-            glfwSetWindowShouldClose(nativeWindow, true);
+            glfwSetWindowShouldClose(
+                nativeWindow,
+                true
+            );
         }
 
-        PlayerInputState playerInput;
+        PlayerInputState playerInput =
+            inputManager.buildPlayerInput(
+                nativeWindow
+            );
 
-        playerInput.moveForward =
-            glfwGetKey(nativeWindow, GLFW_KEY_W) == GLFW_PRESS;
+        player.update(
+            playerInput,
+            deltaTime
+        );
 
-        playerInput.moveBackward =
-            glfwGetKey(nativeWindow, GLFW_KEY_S) == GLFW_PRESS;
+        const Camera& camera =
+            player.getCamera();
 
-        playerInput.moveRight =
-            glfwGetKey(nativeWindow, GLFW_KEY_D) == GLFW_PRESS;
-
-        playerInput.moveLeft =
-            glfwGetKey(nativeWindow, GLFW_KEY_A) == GLFW_PRESS;
-
-        playerInput.moveUp =
-            glfwGetKey(nativeWindow, GLFW_KEY_SPACE) == GLFW_PRESS;
-
-        playerInput.moveDown =
-            glfwGetKey(nativeWindow, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS;
-
-        playerInput.breakBlockPressed =
-            glfwGetMouseButton(nativeWindow, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-
-        playerInput.placeBlockPressed =
-            glfwGetMouseButton(nativeWindow, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
-
-        playerInput.selectSlot1Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_1) == GLFW_PRESS;
-
-        playerInput.selectSlot2Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_2) == GLFW_PRESS;
-
-        playerInput.selectSlot3Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_3) == GLFW_PRESS;
-
-        playerInput.selectSlot4Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_4) == GLFW_PRESS;
-
-        playerInput.selectSlot5Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_5) == GLFW_PRESS;
-
-        playerInput.selectSlot6Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_6) == GLFW_PRESS;
-
-        playerInput.selectSlot7Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_7) == GLFW_PRESS;
-
-        playerInput.selectSlot8Pressed =
-            glfwGetKey(nativeWindow, GLFW_KEY_8) == GLFW_PRESS;
-
-        double mouseX;
-        double mouseY;
-
-        glfwGetCursorPos(nativeWindow, &mouseX, &mouseY);
-
-        if (firstMouse)
-        {
-            lastMouseX = mouseX;
-            lastMouseY = mouseY;
-            firstMouse = false;
-        }
-
-        float xOffset =
-            static_cast<float>(mouseX - lastMouseX);
-
-        float yOffset =
-            static_cast<float>(lastMouseY - mouseY);
-
-        lastMouseX = mouseX;
-        lastMouseY = mouseY;
-
-        playerInput.lookDeltaX = xOffset;
-        playerInput.lookDeltaY = yOffset;
-
-        player.update(playerInput, deltaTime);
-
-        const Camera& camera = player.getCamera();
-
-        float aspect = 1280.0f / 720.0f;
+        float aspect =
+            static_cast<float>(WINDOW_WIDTH) /
+            static_cast<float>(WINDOW_HEIGHT);
 
         glm::mat4 projection =
             camera.getProjectionMatrix(aspect);
@@ -359,7 +209,9 @@ void Application::run()
         glm::mat4 view =
             camera.getViewMatrix();
 
-        frustum.update(projection * view);
+        frustum.update(
+            projection * view
+        );
 
         world.update();
 
@@ -411,34 +263,57 @@ void Application::run()
         }
 
         bool wireframeEnabled =
-            debugMode == DebugViewMode::Wireframe ||
-            debugMode == DebugViewMode::ChunkBordersAndWireframe;
+            debugController
+            .isWireframeEnabled();
 
         bool chunkBordersEnabled =
-            debugMode == DebugViewMode::ChunkBorders ||
-            debugMode == DebugViewMode::ChunkBordersAndWireframe;
+            debugController
+            .areChunkBordersEnabled();
 
-        glClearColor(0.08f, 0.10f, 0.14f, 1.0f);
+        glClearColor(
+            0.08f,
+            0.10f,
+            0.14f,
+            1.0f
+        );
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(
+            GL_COLOR_BUFFER_BIT |
+            GL_DEPTH_BUFFER_BIT
+        );
 
         shader.bind();
 
-        shader.setMat4("uProjection", &projection[0][0]);
-        shader.setMat4("uView", &view[0][0]);
+        shader.setMat4(
+            "uProjection",
+            &projection[0][0]
+        );
 
-        textures.bind(0);
+        shader.setMat4(
+            "uView",
+            &view[0][0]
+        );
+
+        resources
+            .getBlockTextureArray()
+            .bind(0);
 
         if (wireframeEnabled)
         {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glPolygonMode(
+                GL_FRONT_AND_BACK,
+                GL_LINE
+            );
         }
 
         world.draw(frustum);
 
         if (wireframeEnabled)
         {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            glPolygonMode(
+                GL_FRONT_AND_BACK,
+                GL_FILL
+            );
         }
 
         if (chunkBordersEnabled)
@@ -449,25 +324,27 @@ void Application::run()
                 view
             );
         }
-
+         
         if (selectedBlock.hit)
         {
-            blockSelectionRenderer.drawBlockOutline(
-                selectedBlock.blockPosition,
-                projection,
-                view
-            );
+            blockSelectionRenderer
+                .drawBlockOutline(
+                    selectedBlock.blockPosition,
+                    projection,
+                    view
+                );
         }
 
         hudRenderer.draw(
-            1280,
-            720,
-            textures,
-            renderInfo,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            resources.getBlockTextureArray(),
+            resources.getBlockRenderInfo(),
             player.getSelectedBlockId()
         );
 
         m_window->swapBuffers();
+
         m_window->pollEvents();
     }
 
