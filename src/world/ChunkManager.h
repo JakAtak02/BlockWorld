@@ -9,19 +9,21 @@
 
 #include <glm/glm.hpp>
 
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
+class World;
+
 enum class ChunkStreamingState
 {
-    Unloaded,
-    Queued,
     Loading,
     Loaded,
     MeshQueued,
     Meshing,
+    MeshReadyForUpload,
     ReadyToRender,
     UnloadPending
 };
@@ -32,14 +34,22 @@ struct ChunkRenderData
 
     std::unique_ptr<Mesh> mesh;
 
+    std::vector<float> pendingMeshVertices;
+    bool meshUploadQueued = false;
+
+    ChunkStreamingState streamingState =
+        ChunkStreamingState::Loading;
+
+    uint64_t activeRequestId = 0;
+    uint64_t activeMeshRequestId = 0;
+
+    bool meshBuildInProgress = false;
+
     int chunkX = 0;
     int chunkZ = 0;
 
     glm::vec3 minBounds;
     glm::vec3 maxBounds;
-
-    ChunkStreamingState streamingState =
-        ChunkStreamingState::Unloaded;
 };
 
 class ChunkManager
@@ -77,8 +87,7 @@ public:
 
     void processChunkLoadQueue(
         int maxChunksToLoad,
-        TerrainGenerator& terrainGenerator,
-        WorldSaveManager& saveManager
+        World& world
     );
 
     void unloadChunksFarFromPosition(
@@ -87,18 +96,13 @@ public:
         WorldSaveManager& saveManager
     );
 
-    int getPendingChunkLoadCount() const;
-
     void setChunkState(
         int chunkX,
         int chunkZ,
         ChunkStreamingState state
     );
 
-    ChunkStreamingState getChunkState(
-        int chunkX,
-        int chunkZ
-    ) const;
+    size_t getPendingChunkLoadCount() const;
 
     std::unordered_map<
         ChunkCoord,
@@ -141,5 +145,6 @@ private:
         ChunkCoordHash
     > m_chunks;
 
-    std::deque<ChunkCoord> m_pendingChunkLoads;
+    std::deque<ChunkCoord>
+        m_pendingChunkLoads;
 };

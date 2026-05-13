@@ -5,12 +5,18 @@
 
 #include "world/Chunk.h"
 #include "world/ChunkManager.h"
+#include "world/streaming/ChunkStreamingTypes.h"
 #include "world/generation/TerrainGenerator.h"
 #include "world/save/WorldSaveManager.h"
+
+#include "core/JobSystem.h"
+#include "core/ThreadSafeQueue.h"
 
 #include <glm/glm.hpp>
 
 #include <deque>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -46,6 +52,11 @@ public:
     void saveWorld();
 
     void printStreamingDebugStats() const;
+
+    uint64_t submitAsyncChunkLoad(
+        int chunkX,
+        int chunkZ
+    );
 
     uint16_t getBlock(
         int worldX,
@@ -109,16 +120,52 @@ private:
         int maxMeshRebuilds
     );
 
+    void processMeshUploadQueue(
+        int maxMeshUploads
+    );
+
     bool isMeshRebuildQueued(
         int chunkX,
         int chunkZ
     ) const;
 
+    void processCompletedChunkLoads(
+        int maxResultsToProcess
+    );
+
+    uint64_t submitAsyncMeshBuild(
+        const ChunkMeshBuildSnapshot& snapshot
+    );
+
+    void processCompletedMeshBuilds(
+        int maxResultsToProcess
+    );
+
+    ChunkMeshBuildSnapshot
+        createMeshBuildSnapshot(
+            const ChunkRenderData& data
+        ) const;
+
 private:
     ChunkManager m_chunkManager;
 
+    JobSystem m_jobSystem;
+
+    ThreadSafeQueue<
+        AsyncChunkLoadResult
+    > m_completedChunkLoads;
+
+    ThreadSafeQueue<
+        AsyncMeshBuildResult
+    > m_completedMeshBuilds;
+
+    uint64_t m_nextChunkRequestId = 1;
+
     std::deque<ChunkCoord>
         m_pendingMeshRebuilds;
+
+    std::deque<ChunkCoord>
+        m_pendingMeshUploads;
 
     glm::vec3
         m_lastPlayerPosition{ 0.0f };

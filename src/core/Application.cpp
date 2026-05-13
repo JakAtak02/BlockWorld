@@ -3,6 +3,7 @@
 #include "core/DebugController.h"
 #include "core/ResourceManager.h"
 #include "core/InputManager.h"
+#include "core/ThreadSafeQueue.h"
 
 #include "player/Player.h"
 

@@ -1,5 +1,7 @@
 #include "world/ChunkManager.h"
 
+#include "world/World.h"
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -18,6 +20,12 @@ void ChunkManager::loadInitialChunks(
                 chunkZ,
                 terrainGenerator,
                 saveManager
+            );
+
+            setChunkState(
+                chunkX,
+                chunkZ,
+                ChunkStreamingState::ReadyToRender
             );
         }
     }
@@ -41,7 +49,9 @@ void ChunkManager::createOrLoadChunk(
     data.chunkZ = chunkZ;
 
     data.streamingState =
-        ChunkStreamingState::Loading;
+        ChunkStreamingState::Loaded;
+
+    data.activeRequestId = 0;
 
     data.minBounds = glm::vec3(
         static_cast<float>(chunkX * Chunk::SIZE),
@@ -75,9 +85,6 @@ void ChunkManager::createOrLoadChunk(
 
         data.chunk.clearSaveDirty();
     }
-
-    data.streamingState =
-        ChunkStreamingState::Loaded;
 
     ChunkCoord coord
     {
@@ -312,14 +319,13 @@ void ChunkManager::ensureChunksAroundPosition(
 
 void ChunkManager::processChunkLoadQueue(
     int maxChunksToLoad,
-    TerrainGenerator& terrainGenerator,
-    WorldSaveManager& saveManager
+    World& world
 )
 {
-    int chunksLoaded = 0;
+    int chunksSubmitted = 0;
 
     while (!m_pendingChunkLoads.empty() &&
-        chunksLoaded < maxChunksToLoad)
+        chunksSubmitted < maxChunksToLoad)
     {
         ChunkCoord coord =
             m_pendingChunkLoads.front();
@@ -331,14 +337,57 @@ void ChunkManager::processChunkLoadQueue(
             continue;
         }
 
-        createOrLoadChunk(
-            coord.x,
-            coord.z,
-            terrainGenerator,
-            saveManager
+        ChunkRenderData placeholder;
+
+        placeholder.chunkX =
+            coord.x;
+
+        placeholder.chunkZ =
+            coord.z;
+
+        placeholder.streamingState =
+            ChunkStreamingState::Loading;
+
+        placeholder.minBounds =
+            glm::vec3(
+                static_cast<float>(
+                    coord.x * Chunk::SIZE
+                    ),
+                0.0f,
+                static_cast<float>(
+                    coord.z * Chunk::SIZE
+                    )
+            );
+
+        placeholder.maxBounds =
+            glm::vec3(
+                placeholder.minBounds.x +
+                static_cast<float>(
+                    Chunk::SIZE
+                    ),
+
+                static_cast<float>(
+                    Chunk::SIZE
+                    ),
+
+                placeholder.minBounds.z +
+                static_cast<float>(
+                    Chunk::SIZE
+                    )
+            );
+
+        placeholder.activeRequestId =
+            world.submitAsyncChunkLoad(
+                coord.x,
+                coord.z
+            );
+
+        m_chunks.emplace(
+            coord,
+            std::move(placeholder)
         );
 
-        chunksLoaded++;
+        chunksSubmitted++;
     }
 }
 
@@ -439,13 +488,6 @@ void ChunkManager::unloadChunksFarFromPosition(
     }
 }
 
-int ChunkManager::getPendingChunkLoadCount() const
-{
-    return static_cast<int>(
-        m_pendingChunkLoads.size()
-        );
-}
-
 void ChunkManager::enqueueChunkLoad(
     int chunkX,
     int chunkZ
@@ -498,10 +540,7 @@ void ChunkManager::setChunkState(
 )
 {
     ChunkRenderData* data =
-        findChunk(
-            chunkX,
-            chunkZ
-        );
+        findChunk(chunkX, chunkZ);
 
     if (!data)
     {
@@ -509,6 +548,11 @@ void ChunkManager::setChunkState(
     }
 
     data->streamingState = state;
+}
+
+size_t ChunkManager::getPendingChunkLoadCount() const
+{
+    return m_pendingChunkLoads.size();
 }
 
 int ChunkManager::worldToChunkCoord(
