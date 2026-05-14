@@ -47,8 +47,29 @@ void Chunk::setBlock(
 
     m_blocks[index(x, y, z)] = blockId;
 
+    m_shouldSaveIfEmpty = true;
+
     markMeshDirty();
     markSaveDirty();
+}
+
+void Chunk::setGeneratedBlock(
+    int x,
+    int y,
+    int z,
+    uint16_t blockId
+)
+{
+    if (x < 0 || x >= SIZE ||
+        y < 0 || y >= SIZE ||
+        z < 0 || z >= SIZE)
+    {
+        return;
+    }
+
+    m_blocks[index(x, y, z)] = blockId;
+
+    markMeshDirty();
 }
 
 const std::vector<uint16_t>&
@@ -65,6 +86,25 @@ void Chunk::setBlocks(
 
     markMeshDirty();
     clearSaveDirty();
+}
+
+bool Chunk::isEmpty() const
+{
+    for (uint16_t block :
+    m_blocks)
+    {
+        if (block != 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Chunk::shouldSaveIfEmpty() const
+{
+    return m_shouldSaveIfEmpty;
 }
 
 bool Chunk::isMeshDirty() const

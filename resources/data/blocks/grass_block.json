@@ -8,5 +8,6 @@
   },
   "solid": true,
   "opaque": true,
+  "tinted": true,
   "model": "resources/data/models/block/cube.json"
 }

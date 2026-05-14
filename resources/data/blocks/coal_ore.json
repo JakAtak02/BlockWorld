@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:coal_ore",
+  "display_name": "Coal Ore",
+  "texture": "assets/textures/blocks/coal_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:flowing_lava",
+  "display_name": "Flowing Lava",
+  "texture": "assets/textures/blocks/flowing_lava.png",
+  "solid": false,
+  "opaque": false,
+  "model": "resources/data/models/block/cube.json"
+}

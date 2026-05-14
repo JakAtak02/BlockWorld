@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:sapphire_ore",
+  "display_name": "Sapphire Ore",
+  "texture": "assets/textures/blocks/sapphire_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

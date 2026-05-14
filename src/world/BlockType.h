@@ -29,5 +29,8 @@ struct BlockType
     bool solid = true;
     bool opaque = true;
 
+    // Future biome/render tint support.
+    bool tinted = false;
+
     BlockModel model;
 };

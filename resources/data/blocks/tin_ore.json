@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:tin_ore",
+  "display_name": "Tin Ore",
+  "texture": "assets/textures/blocks/tin_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

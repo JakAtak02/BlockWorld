@@ -6,39 +6,63 @@
 #include <cmath>
 #include <vector>
 
+static constexpr int ACTIVE_VERTICAL_CHUNK_MIN_Y = 0;
+static constexpr int ACTIVE_VERTICAL_CHUNK_MAX_Y = 15;
+static constexpr int INITIAL_SYNC_LOAD_RADIUS_CHUNKS = 0;
+static constexpr int MAX_CHUNKS_QUEUED_PER_UPDATE = 64;
+
 void ChunkManager::loadInitialChunks(
     TerrainGenerator& terrainGenerator,
     WorldSaveManager& saveManager
 )
 {
-    for (int chunkZ = -1; chunkZ <= 1; chunkZ++)
+    for (int chunkZ = -INITIAL_SYNC_LOAD_RADIUS_CHUNKS;
+        chunkZ <= INITIAL_SYNC_LOAD_RADIUS_CHUNKS;
+        chunkZ++)
     {
-        for (int chunkX = -1; chunkX <= 1; chunkX++)
+        for (int chunkX = -INITIAL_SYNC_LOAD_RADIUS_CHUNKS;
+            chunkX <= INITIAL_SYNC_LOAD_RADIUS_CHUNKS;
+            chunkX++)
         {
-            createOrLoadChunk(
-                chunkX,
-                chunkZ,
-                terrainGenerator,
-                saveManager
-            );
+            std::vector<int> chunkYsToLoad =
+                getChunkYsToLoadForColumn(
+                    chunkX,
+                    chunkZ,
+                    terrainGenerator,
+                    saveManager
+                );
 
-            setChunkState(
-                chunkX,
-                chunkZ,
-                ChunkStreamingState::ReadyToRender
-            );
+            for (int chunkY :
+            chunkYsToLoad)
+            {
+                createOrLoadChunk(
+                    chunkX,
+                    chunkY,
+                    chunkZ,
+                    terrainGenerator,
+                    saveManager
+                );
+
+                setChunkState(
+                    chunkX,
+                    chunkY,
+                    chunkZ,
+                    ChunkStreamingState::ReadyToRender
+                );
+            }
         }
     }
 }
 
 void ChunkManager::createOrLoadChunk(
     int chunkX,
+    int chunkY,
     int chunkZ,
     TerrainGenerator& terrainGenerator,
     WorldSaveManager& saveManager
 )
 {
-    if (findChunk(chunkX, chunkZ))
+    if (findChunk(chunkX, chunkY, chunkZ))
     {
         return;
     }
@@ -46,6 +70,7 @@ void ChunkManager::createOrLoadChunk(
     ChunkRenderData data;
 
     data.chunkX = chunkX;
+    data.chunkY = chunkY;
     data.chunkZ = chunkZ;
 
     data.streamingState =
@@ -55,33 +80,39 @@ void ChunkManager::createOrLoadChunk(
 
     data.minBounds = glm::vec3(
         static_cast<float>(chunkX * Chunk::SIZE),
-        0.0f,
+        static_cast<float>(chunkY * Chunk::SIZE),
         static_cast<float>(chunkZ * Chunk::SIZE)
     );
 
     data.maxBounds = glm::vec3(
         data.minBounds.x + static_cast<float>(Chunk::SIZE),
-        static_cast<float>(Chunk::SIZE),
+        data.minBounds.y + static_cast<float>(Chunk::SIZE),
         data.minBounds.z + static_cast<float>(Chunk::SIZE)
     );
 
     if (!saveManager.loadChunk(
         data.chunk,
         chunkX,
+        chunkY,
         chunkZ
     ))
     {
         terrainGenerator.generateChunk(
             data.chunk,
             chunkX,
+            chunkY,
             chunkZ
         );
 
-        saveManager.saveChunk(
-            data.chunk,
-            chunkX,
-            chunkZ
-        );
+        if (!data.chunk.isEmpty())
+        {
+            saveManager.saveChunk(
+                data.chunk,
+                chunkX,
+                chunkY,
+                chunkZ
+            );
+        }
 
         data.chunk.clearSaveDirty();
     }
@@ -89,6 +120,7 @@ void ChunkManager::createOrLoadChunk(
     ChunkCoord coord
     {
         chunkX,
+        chunkY,
         chunkZ
     };
 
@@ -100,6 +132,7 @@ void ChunkManager::createOrLoadChunk(
 
 ChunkRenderData* ChunkManager::findChunk(
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
@@ -108,6 +141,7 @@ ChunkRenderData* ChunkManager::findChunk(
             ChunkCoord
             {
                 chunkX,
+                chunkY,
                 chunkZ
             }
         );
@@ -122,6 +156,7 @@ ChunkRenderData* ChunkManager::findChunk(
 
 const ChunkRenderData* ChunkManager::findChunk(
     int chunkX,
+    int chunkY,
     int chunkZ
 ) const
 {
@@ -130,6 +165,7 @@ const ChunkRenderData* ChunkManager::findChunk(
             ChunkCoord
             {
                 chunkX,
+                chunkY,
                 chunkZ
             }
         );
@@ -144,19 +180,21 @@ const ChunkRenderData* ChunkManager::findChunk(
 
 ChunkRenderData* ChunkManager::getOrCreateChunk(
     int chunkX,
+    int chunkY,
     int chunkZ,
     TerrainGenerator& terrainGenerator,
     WorldSaveManager& saveManager
 )
 {
     if (ChunkRenderData* existing =
-        findChunk(chunkX, chunkZ))
+        findChunk(chunkX, chunkY, chunkZ))
     {
         return existing;
     }
 
     createOrLoadChunk(
         chunkX,
+        chunkY,
         chunkZ,
         terrainGenerator,
         saveManager
@@ -164,8 +202,69 @@ ChunkRenderData* ChunkManager::getOrCreateChunk(
 
     return findChunk(
         chunkX,
+        chunkY,
         chunkZ
     );
+}
+
+std::vector<int> ChunkManager::getChunkYsToLoadForColumn(
+    int chunkX,
+    int chunkZ,
+    TerrainGenerator& terrainGenerator,
+    WorldSaveManager& saveManager
+) const
+{
+    std::vector<int> chunkYsToLoad;
+
+    int highestTerrainChunkY =
+        terrainGenerator.getHighestTerrainChunkY(
+            chunkX,
+            chunkZ
+        );
+
+    int maxTerrainChunkY =
+        std::min(
+            highestTerrainChunkY + 1,
+            ACTIVE_VERTICAL_CHUNK_MAX_Y
+        );
+
+    for (int chunkY = ACTIVE_VERTICAL_CHUNK_MIN_Y;
+        chunkY <= maxTerrainChunkY;
+        chunkY++)
+    {
+        chunkYsToLoad.push_back(
+            chunkY
+        );
+    }
+
+    std::vector<int> savedChunkYs =
+        saveManager.getSavedChunkYs(
+            chunkX,
+            chunkZ
+        );
+
+    for (int savedChunkY :
+    savedChunkYs)
+    {
+        if (std::find(
+            chunkYsToLoad.begin(),
+            chunkYsToLoad.end(),
+            savedChunkY
+        ) ==
+            chunkYsToLoad.end())
+        {
+            chunkYsToLoad.push_back(
+                savedChunkY
+            );
+        }
+    }
+
+    std::sort(
+        chunkYsToLoad.begin(),
+        chunkYsToLoad.end()
+    );
+
+    return chunkYsToLoad;
 }
 
 void ChunkManager::ensureChunksAroundPosition(
@@ -208,23 +307,44 @@ void ChunkManager::ensureChunksAroundPosition(
             chunkX <= playerChunkX + loadRadiusChunks;
             chunkX++)
         {
-            if (findChunk(chunkX, chunkZ))
-            {
-                continue;
-            }
-
-            if (isChunkLoadQueued(chunkX, chunkZ))
-            {
-                continue;
-            }
-
-            chunksToQueue.push_back(
-                ChunkCoord
-                {
+            std::vector<int> chunkYsToLoad =
+                getChunkYsToLoadForColumn(
                     chunkX,
+                    chunkZ,
+                    terrainGenerator,
+                    saveManager
+                );
+
+            for (int chunkY :
+            chunkYsToLoad)
+            {
+                if (findChunk(
+                    chunkX,
+                    chunkY,
                     chunkZ
+                ))
+                {
+                    continue;
                 }
-            );
+
+                if (isChunkLoadQueued(
+                    chunkX,
+                    chunkY,
+                    chunkZ
+                ))
+                {
+                    continue;
+                }
+
+                chunksToQueue.push_back(
+                    ChunkCoord
+                    {
+                        chunkX,
+                        chunkY,
+                        chunkZ
+                    }
+                );
+            }
         }
     }
 
@@ -307,13 +427,24 @@ void ChunkManager::ensureChunksAroundPosition(
         }
     );
 
+    int queuedThisUpdate = 0;
+
     for (const ChunkCoord& coord :
         chunksToQueue)
     {
+        if (queuedThisUpdate >=
+            MAX_CHUNKS_QUEUED_PER_UPDATE)
+        {
+            break;
+        }
+
         enqueueChunkLoad(
             coord.x,
+            coord.y,
             coord.z
         );
+
+        queuedThisUpdate++;
     }
 }
 
@@ -332,7 +463,7 @@ void ChunkManager::processChunkLoadQueue(
 
         m_pendingChunkLoads.pop_front();
 
-        if (findChunk(coord.x, coord.z))
+        if (findChunk(coord.x, coord.y, coord.z))
         {
             continue;
         }
@@ -341,6 +472,9 @@ void ChunkManager::processChunkLoadQueue(
 
         placeholder.chunkX =
             coord.x;
+
+        placeholder.chunkY =
+            coord.y;
 
         placeholder.chunkZ =
             coord.z;
@@ -353,7 +487,9 @@ void ChunkManager::processChunkLoadQueue(
                 static_cast<float>(
                     coord.x * Chunk::SIZE
                     ),
-                0.0f,
+                static_cast<float>(
+                    coord.y * Chunk::SIZE
+                    ),
                 static_cast<float>(
                     coord.z * Chunk::SIZE
                     )
@@ -366,6 +502,7 @@ void ChunkManager::processChunkLoadQueue(
                     Chunk::SIZE
                     ),
 
+                placeholder.minBounds.y +
                 static_cast<float>(
                     Chunk::SIZE
                     ),
@@ -379,6 +516,7 @@ void ChunkManager::processChunkLoadQueue(
         placeholder.activeRequestId =
             world.submitAsyncChunkLoad(
                 coord.x,
+                coord.y,
                 coord.z
             );
 
@@ -449,6 +587,7 @@ void ChunkManager::unloadChunksFarFromPosition(
             if (saveManager.saveChunk(
                 data.chunk,
                 data.chunkX,
+                data.chunkY,
                 data.chunkZ
             ))
             {
@@ -490,16 +629,18 @@ void ChunkManager::unloadChunksFarFromPosition(
 
 void ChunkManager::enqueueChunkLoad(
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
-    if (findChunk(chunkX, chunkZ))
+    if (findChunk(chunkX, chunkY, chunkZ))
     {
         return;
     }
 
     if (isChunkLoadQueued(
         chunkX,
+        chunkY,
         chunkZ
     ))
     {
@@ -510,6 +651,7 @@ void ChunkManager::enqueueChunkLoad(
         ChunkCoord
         {
             chunkX,
+            chunkY,
             chunkZ
         }
     );
@@ -517,6 +659,7 @@ void ChunkManager::enqueueChunkLoad(
 
 bool ChunkManager::isChunkLoadQueued(
     int chunkX,
+    int chunkY,
     int chunkZ
 ) const
 {
@@ -524,6 +667,7 @@ bool ChunkManager::isChunkLoadQueued(
         m_pendingChunkLoads)
     {
         if (coord.x == chunkX &&
+            coord.y == chunkY &&
             coord.z == chunkZ)
         {
             return true;
@@ -535,12 +679,13 @@ bool ChunkManager::isChunkLoadQueued(
 
 void ChunkManager::setChunkState(
     int chunkX,
+    int chunkY,
     int chunkZ,
     ChunkStreamingState state
 )
 {
     ChunkRenderData* data =
-        findChunk(chunkX, chunkZ);
+        findChunk(chunkX, chunkY, chunkZ);
 
     if (!data)
     {

@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <regex>
 #include <sstream>
 
 #include <json.hpp>
@@ -36,27 +37,168 @@ void WorldSaveManager::initialize()
 bool WorldSaveManager::loadChunk(
     Chunk& chunk,
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
     return ChunkSerializer::loadChunk(
         chunk,
-        getChunkSavePath(chunkX, chunkZ)
+        getChunkSavePath(
+            chunkX,
+            chunkY,
+            chunkZ
+        )
     );
 }
 
 bool WorldSaveManager::saveChunk(
     const Chunk& chunk,
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
-    return ChunkSerializer::saveChunk(
-        chunk,
-        getChunkSavePath(chunkX, chunkZ),
+
+    if (chunk.isEmpty() &&
+        !chunk.shouldSaveIfEmpty())
+    {
+        return true;
+    }
+
+    bool success =
+        ChunkSerializer::saveChunk(
+            chunk,
+            getChunkSavePath(
+                chunkX,
+                chunkY,
+                chunkZ
+            ),
+            chunkX,
+            chunkY,
+            chunkZ
+        );
+
+    if (!success)
+    {
+        return false;
+    }
+
+    ChunkColumnKey key
+    {
         chunkX,
         chunkZ
-    );
+    };
+
+    std::vector<int>& cachedYs =
+        m_savedChunkColumnCache[key];
+
+    if (std::find(
+        cachedYs.begin(),
+        cachedYs.end(),
+        chunkY
+    ) ==
+        cachedYs.end())
+    {
+        cachedYs.push_back(chunkY);
+    }
+
+    return true;
+}
+
+std::vector<int> WorldSaveManager::getSavedChunkYs(
+    int chunkX,
+    int chunkZ
+) const
+{
+    ChunkColumnKey key
+    {
+        chunkX,
+        chunkZ
+    };
+
+    auto cachedIt =
+        m_savedChunkColumnCache.find(key);
+
+    if (cachedIt !=
+        m_savedChunkColumnCache.end())
+    {
+        return cachedIt->second;
+    }
+
+    namespace fs = std::filesystem;
+
+    std::vector<int> chunkYs;
+
+    fs::path chunksPath =
+        getWorldSavePath() + "/chunks";
+
+    if (!fs::exists(chunksPath))
+    {
+        return chunkYs;
+    }
+
+    std::string filenamePrefix =
+        "chunk_" +
+        std::to_string(chunkX) +
+        "_";
+
+    std::string filenameSuffix =
+        "_" +
+        std::to_string(chunkZ) +
+        ".json";
+
+    for (const auto& entry :
+        fs::directory_iterator(chunksPath))
+    {
+        if (!entry.is_regular_file())
+        {
+            continue;
+        }
+
+        std::string filename =
+            entry.path().filename().string();
+
+        if (!filename.starts_with(
+            filenamePrefix))
+        {
+            continue;
+        }
+
+        if (!filename.ends_with(
+            filenameSuffix))
+        {
+            continue;
+        }
+
+        size_t start =
+            filenamePrefix.length();
+
+        size_t end =
+            filename.length() -
+            filenameSuffix.length();
+
+        std::string yString =
+            filename.substr(
+                start,
+                end - start
+            );
+
+        try
+        {
+            int chunkY =
+                std::stoi(yString);
+
+            chunkYs.push_back(chunkY);
+        }
+        catch (...)
+        {
+        }
+    }
+
+    m_savedChunkColumnCache[key] =
+        chunkYs;
+
+    return chunkYs;
 }
 
 std::string WorldSaveManager::getWorldSavePath() const
@@ -66,6 +208,7 @@ std::string WorldSaveManager::getWorldSavePath() const
 
 std::string WorldSaveManager::getChunkSavePath(
     int chunkX,
+    int chunkY,
     int chunkZ
 ) const
 {
@@ -75,6 +218,8 @@ std::string WorldSaveManager::getChunkSavePath(
         << getWorldSavePath()
         << "/chunks/chunk_"
         << chunkX
+        << "_"
+        << chunkY
         << "_"
         << chunkZ
         << ".json";
@@ -99,6 +244,9 @@ void WorldSaveManager::createWorldMetadataFile() const
     data["version"] = m_worldVersion;
     data["seed"] = m_worldSeed;
     data["chunk_size"] = Chunk::SIZE;
+    data["world_min_y"] = 0;
+    data["vertical_chunk_count"] = 64;
+    data["world_height"] = Chunk::SIZE * 64;
 
     std::ofstream file(
         getWorldSavePath() + "/world.json"

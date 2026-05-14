@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:diamond_ore",
+  "display_name": "Diamond Ore",
+  "texture": "assets/textures/blocks/diamond_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

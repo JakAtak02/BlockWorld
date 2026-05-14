@@ -6,7 +6,10 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <set>
 #include <thread>
+#include <utility>
+
 
 World::World(
     const std::vector<BlockRenderInfo>& renderInfo
@@ -47,21 +50,24 @@ World::World(
         }
 
         data.chunk.clearMeshDirty();
-        
+
         m_chunkManager.setChunkState(
             coord.x,
+            coord.y,
             coord.z,
             ChunkStreamingState::MeshQueued
         );
 
         m_chunkManager.setChunkState(
             coord.x,
+            coord.y,
             coord.z,
             ChunkStreamingState::MeshReadyForUpload
         );
 
         m_chunkManager.setChunkState(
             coord.x,
+            coord.y,
             coord.z,
             ChunkStreamingState::ReadyToRender
         );
@@ -95,6 +101,7 @@ void World::update(
 
         enqueueMeshRebuild(
             coord.x,
+            coord.y,
             coord.z
         );
     }
@@ -151,8 +158,8 @@ uint16_t World::getBlock(
     int worldZ
 ) const
 {
-    if (worldY < 0 ||
-        worldY >= Chunk::SIZE)
+    if (worldY < WORLD_MIN_Y ||
+        worldY > WORLD_MAX_Y)
     {
         return 0;
     }
@@ -160,11 +167,17 @@ uint16_t World::getBlock(
     int chunkX =
         floorDiv(worldX, Chunk::SIZE);
 
+    int chunkY =
+        floorDiv(worldY, Chunk::SIZE);
+
     int chunkZ =
         floorDiv(worldZ, Chunk::SIZE);
 
     int localX =
         positiveMod(worldX, Chunk::SIZE);
+
+    int localY =
+        positiveMod(worldY, Chunk::SIZE);
 
     int localZ =
         positiveMod(worldZ, Chunk::SIZE);
@@ -172,6 +185,7 @@ uint16_t World::getBlock(
     const ChunkRenderData* data =
         m_chunkManager.findChunk(
             chunkX,
+            chunkY,
             chunkZ
         );
 
@@ -182,7 +196,7 @@ uint16_t World::getBlock(
 
     return data->chunk.getBlock(
         localX,
-        worldY,
+        localY,
         localZ
     );
 }
@@ -194,8 +208,8 @@ void World::setBlock(
     uint16_t blockId
 )
 {
-    if (worldY < 0 ||
-        worldY >= Chunk::SIZE)
+    if (worldY < WORLD_MIN_Y ||
+        worldY > WORLD_MAX_Y)
     {
         return;
     }
@@ -203,11 +217,17 @@ void World::setBlock(
     int chunkX =
         floorDiv(worldX, Chunk::SIZE);
 
+    int chunkY =
+        floorDiv(worldY, Chunk::SIZE);
+
     int chunkZ =
         floorDiv(worldZ, Chunk::SIZE);
 
     int localX =
         positiveMod(worldX, Chunk::SIZE);
+
+    int localY =
+        positiveMod(worldY, Chunk::SIZE);
 
     int localZ =
         positiveMod(worldZ, Chunk::SIZE);
@@ -215,6 +235,7 @@ void World::setBlock(
     ChunkRenderData* data =
         m_chunkManager.getOrCreateChunk(
             chunkX,
+            chunkY,
             chunkZ,
             m_terrainGenerator,
             m_saveManager
@@ -227,7 +248,7 @@ void World::setBlock(
 
     data->chunk.setBlock(
         localX,
-        worldY,
+        localY,
         localZ,
         blockId
     );
@@ -236,80 +257,88 @@ void World::setBlock(
 
     m_chunkManager.setChunkState(
         chunkX,
+        chunkY,
         chunkZ,
         ChunkStreamingState::MeshQueued
     );
 
+    auto markNeighborDirty =
+        [this](
+            int neighborChunkX,
+            int neighborChunkY,
+            int neighborChunkZ
+            )
+        {
+            if (ChunkRenderData* neighbor =
+                m_chunkManager.findChunk(
+                    neighborChunkX,
+                    neighborChunkY,
+                    neighborChunkZ
+                ))
+            {
+                neighbor->chunk.markMeshDirty();
+
+                m_chunkManager.setChunkState(
+                    neighborChunkX,
+                    neighborChunkY,
+                    neighborChunkZ,
+                    ChunkStreamingState::MeshQueued
+                );
+            }
+        };
+
     if (localX == 0)
     {
-        if (ChunkRenderData* neighbor =
-            m_chunkManager.findChunk(
-                chunkX - 1,
-                chunkZ
-            ))
-        {
-            neighbor->chunk.markMeshDirty();
-
-            m_chunkManager.setChunkState(
-                chunkX - 1,
-                chunkZ,
-                ChunkStreamingState::MeshQueued
-            );
-        }
+        markNeighborDirty(
+            chunkX - 1,
+            chunkY,
+            chunkZ
+        );
     }
 
     if (localX == Chunk::SIZE - 1)
     {
-        if (ChunkRenderData* neighbor =
-            m_chunkManager.findChunk(
-                chunkX + 1,
-                chunkZ
-            ))
-        {
-            neighbor->chunk.markMeshDirty();
+        markNeighborDirty(
+            chunkX + 1,
+            chunkY,
+            chunkZ
+        );
+    }
 
-            m_chunkManager.setChunkState(
-                chunkX + 1,
-                chunkZ,
-                ChunkStreamingState::MeshQueued
-            );
-        }
+    if (localY == 0)
+    {
+        markNeighborDirty(
+            chunkX,
+            chunkY - 1,
+            chunkZ
+        );
+    }
+
+    if (localY == Chunk::SIZE - 1)
+    {
+        markNeighborDirty(
+            chunkX,
+            chunkY + 1,
+            chunkZ
+        );
     }
 
     if (localZ == 0)
     {
-        if (ChunkRenderData* neighbor =
-            m_chunkManager.findChunk(
-                chunkX,
-                chunkZ - 1
-            ))
-        {
-            neighbor->chunk.markMeshDirty();
-
-            m_chunkManager.setChunkState(
-                chunkX,
-                chunkZ - 1,
-                ChunkStreamingState::MeshQueued
-            );
-        }
+        markNeighborDirty(
+            chunkX,
+            chunkY,
+            chunkZ - 1
+        );
     }
 
     if (localZ == Chunk::SIZE - 1)
     {
-        if (ChunkRenderData* neighbor =
-            m_chunkManager.findChunk(
-                chunkX,
-                chunkZ + 1
-            ))
-        {
-            neighbor->chunk.markMeshDirty();
-
-            m_chunkManager.setChunkState(
-                chunkX,
-                chunkZ + 1,
-                ChunkStreamingState::MeshQueued
-            );
-        }
+        markNeighborDirty(
+            chunkX,
+            chunkY,
+            chunkZ + 1
+        );
     }
 }
 
@@ -489,12 +518,45 @@ void World::drawChunkBorders(
     const glm::mat4& view
 ) const
 {
+    std::set<std::pair<int, int>> drawnColumns;
+
     for (const auto& [coord, data] :
         m_chunkManager.getChunks())
     {
+        std::pair<int, int> columnKey =
+        {
+            coord.x,
+            coord.z
+        };
+
+        if (drawnColumns.contains(columnKey))
+        {
+            continue;
+        }
+
+        drawnColumns.insert(columnKey);
+
+        glm::vec3 minBounds(
+            static_cast<float>(
+                coord.x * Chunk::SIZE
+                ),
+            static_cast<float>(
+                WORLD_MIN_Y
+                ),
+            static_cast<float>(
+                coord.z * Chunk::SIZE
+                )
+        );
+
+        glm::vec3 maxBounds(
+            minBounds.x + static_cast<float>(Chunk::SIZE),
+            static_cast<float>(WORLD_MAX_Y + 1),
+            minBounds.z + static_cast<float>(Chunk::SIZE)
+        );
+
         debugRenderer.drawChunkBorder(
-            data.minBounds,
-            data.maxBounds,
+            minBounds,
+            maxBounds,
             projection,
             view
         );
@@ -570,10 +632,15 @@ int World::calculateMeshRebuildBudget(
 
 void World::enqueueMeshRebuild(
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
-    if (isMeshRebuildQueued(chunkX, chunkZ))
+    if (isMeshRebuildQueued(
+        chunkX,
+        chunkY,
+        chunkZ
+    ))
     {
         return;
     }
@@ -582,9 +649,57 @@ void World::enqueueMeshRebuild(
         ChunkCoord
         {
             chunkX,
+            chunkY,
             chunkZ
         }
     );
+}
+
+void World::markChunkAndNeighborsDirty(
+    int chunkX,
+    int chunkY,
+    int chunkZ
+)
+{
+    auto markDirty =
+        [this](
+            int targetChunkX,
+            int targetChunkY,
+            int targetChunkZ
+            )
+        {
+            ChunkRenderData* data =
+                m_chunkManager.findChunk(
+                    targetChunkX,
+                    targetChunkY,
+                    targetChunkZ
+                );
+
+            if (!data)
+            {
+                return;
+            }
+
+            data->chunk.markMeshDirty();
+
+            m_chunkManager.setChunkState(
+                targetChunkX,
+                targetChunkY,
+                targetChunkZ,
+                ChunkStreamingState::MeshQueued
+            );
+        };
+
+    markDirty(chunkX, chunkY, chunkZ);
+
+    markDirty(chunkX - 1, chunkY, chunkZ);
+    markDirty(chunkX + 1, chunkY, chunkZ);
+
+    markDirty(chunkX, chunkY - 1, chunkZ);
+    markDirty(chunkX, chunkY + 1, chunkZ);
+
+    markDirty(chunkX, chunkY, chunkZ - 1);
+    markDirty(chunkX, chunkY, chunkZ + 1);
 }
 
 void World::processMeshRebuildQueue(
@@ -596,6 +711,16 @@ void World::processMeshRebuildQueue(
             static_cast<int>(
                 std::floor(
                     m_lastPlayerPosition.x
+                )
+                ),
+            Chunk::SIZE
+        );
+
+    int playerChunkY =
+        floorDiv(
+            static_cast<int>(
+                std::floor(
+                    m_lastPlayerPosition.y
                 )
                 ),
             Chunk::SIZE
@@ -614,7 +739,7 @@ void World::processMeshRebuildQueue(
     std::sort(
         m_pendingMeshRebuilds.begin(),
         m_pendingMeshRebuilds.end(),
-        [playerChunkX, playerChunkZ](
+        [playerChunkX, playerChunkY, playerChunkZ](
             const ChunkCoord& left,
             const ChunkCoord& right
             )
@@ -622,21 +747,29 @@ void World::processMeshRebuildQueue(
             int leftDistanceX =
                 left.x - playerChunkX;
 
+            int leftDistanceY =
+                left.y - playerChunkY;
+
             int leftDistanceZ =
                 left.z - playerChunkZ;
 
             int rightDistanceX =
                 right.x - playerChunkX;
 
+            int rightDistanceY =
+                right.y - playerChunkY;
+
             int rightDistanceZ =
                 right.z - playerChunkZ;
 
             int leftDistanceSquared =
                 leftDistanceX * leftDistanceX +
+                leftDistanceY * leftDistanceY +
                 leftDistanceZ * leftDistanceZ;
 
             int rightDistanceSquared =
                 rightDistanceX * rightDistanceX +
+                rightDistanceY * rightDistanceY +
                 rightDistanceZ * rightDistanceZ;
 
             return leftDistanceSquared <
@@ -657,6 +790,7 @@ void World::processMeshRebuildQueue(
         ChunkRenderData* data =
             m_chunkManager.findChunk(
                 coord.x,
+                coord.y,
                 coord.z
             );
 
@@ -675,8 +809,27 @@ void World::processMeshRebuildQueue(
             continue;
         }
 
+        if (data->chunk.isEmpty())
+        {
+            data->mesh.reset();
+            data->pendingMeshVertices.clear();
+            data->meshUploadQueued = false;
+
+            data->chunk.clearMeshDirty();
+
+            m_chunkManager.setChunkState(
+                coord.x,
+                coord.y,
+                coord.z,
+                ChunkStreamingState::ReadyToRender
+            );
+
+            continue;
+        }
+
         m_chunkManager.setChunkState(
             coord.x,
+            coord.y,
             coord.z,
             ChunkStreamingState::Meshing
         );
@@ -714,6 +867,7 @@ void World::processMeshUploadQueue(
         ChunkRenderData* data =
             m_chunkManager.findChunk(
                 coord.x,
+                coord.y,
                 coord.z
             );
 
@@ -728,14 +882,19 @@ void World::processMeshUploadQueue(
                 std::make_unique<Mesh>(
                     data->pendingMeshVertices
                 );
-
-            data->pendingMeshVertices.clear();
         }
+        else
+        {
+            data->mesh.reset();
+        }
+
+        data->pendingMeshVertices.clear();
 
         data->meshUploadQueued = false;
 
         m_chunkManager.setChunkState(
             coord.x,
+            coord.y,
             coord.z,
             ChunkStreamingState::ReadyToRender
         );
@@ -746,6 +905,7 @@ void World::processMeshUploadQueue(
 
 bool World::isMeshRebuildQueued(
     int chunkX,
+    int chunkY,
     int chunkZ
 ) const
 {
@@ -753,6 +913,7 @@ bool World::isMeshRebuildQueued(
         m_pendingMeshRebuilds)
     {
         if (coord.x == chunkX &&
+            coord.y == chunkY &&
             coord.z == chunkZ)
         {
             return true;
@@ -770,7 +931,9 @@ void World::rebuildChunkMesh(
         static_cast<float>(
             data.chunkX * Chunk::SIZE
             ),
-        0.0f,
+        static_cast<float>(
+            data.chunkY * Chunk::SIZE
+            ),
         static_cast<float>(
             data.chunkZ * Chunk::SIZE
             )
@@ -885,6 +1048,7 @@ void World::printStreamingDebugStats() const
 
 uint64_t World::submitAsyncChunkLoad(
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
@@ -892,17 +1056,19 @@ uint64_t World::submitAsyncChunkLoad(
         m_nextChunkRequestId++;
 
     m_jobSystem.submit(
-        [this, chunkX, chunkZ, requestId]()
+        [this, chunkX, chunkY, chunkZ, requestId]()
         {
             AsyncChunkLoadResult result;
 
             result.chunkX = chunkX;
+            result.chunkY = chunkY;
             result.chunkZ = chunkZ;
             result.requestId = requestId;
 
             if (m_saveManager.loadChunk(
                 result.chunk,
                 chunkX,
+                chunkY,
                 chunkZ
             ))
             {
@@ -915,6 +1081,7 @@ uint64_t World::submitAsyncChunkLoad(
                 m_terrainGenerator.generateChunk(
                     result.chunk,
                     chunkX,
+                    chunkY,
                     chunkZ
                 );
 
@@ -953,6 +1120,9 @@ uint64_t World::submitAsyncMeshBuild(
             result.chunkX =
                 snapshotCopy.chunkX;
 
+            result.chunkY =
+                snapshotCopy.chunkY;
+
             result.chunkZ =
                 snapshotCopy.chunkZ;
 
@@ -964,7 +1134,10 @@ uint64_t World::submitAsyncMeshBuild(
                     snapshotCopy.chunkX *
                     Chunk::SIZE
                     ),
-                0.0f,
+                static_cast<float>(
+                    snapshotCopy.chunkY *
+                    Chunk::SIZE
+                    ),
                 static_cast<float>(
                     snapshotCopy.chunkZ *
                     Chunk::SIZE
@@ -979,46 +1152,42 @@ uint64_t World::submitAsyncMeshBuild(
                     ) -> uint16_t
                 {
                     int chunkX =
-                        worldX / Chunk::SIZE;
+                        floorDiv(worldX, Chunk::SIZE);
+
+                    int chunkY =
+                        floorDiv(worldY, Chunk::SIZE);
 
                     int chunkZ =
-                        worldZ / Chunk::SIZE;
-
-                    if (worldX < 0 &&
-                        worldX % Chunk::SIZE != 0)
-                    {
-                        chunkX--;
-                    }
-
-                    if (worldZ < 0 &&
-                        worldZ % Chunk::SIZE != 0)
-                    {
-                        chunkZ--;
-                    }
+                        floorDiv(worldZ, Chunk::SIZE);
 
                     int localX =
-                        worldX -
-                        chunkX * Chunk::SIZE;
+                        positiveMod(worldX, Chunk::SIZE);
+
+                    int localY =
+                        positiveMod(worldY, Chunk::SIZE);
 
                     int localZ =
-                        worldZ -
-                        chunkZ * Chunk::SIZE;
+                        positiveMod(worldZ, Chunk::SIZE);
 
                     if (chunkX ==
                         snapshotCopy.chunkX &&
+                        chunkY ==
+                        snapshotCopy.chunkY &&
                         chunkZ ==
                         snapshotCopy.chunkZ)
                     {
                         return snapshotCopy
                             .centerChunk.getBlock(
                                 localX,
-                                worldY,
+                                localY,
                                 localZ
                             );
                     }
 
                     if (chunkX ==
                         snapshotCopy.chunkX - 1 &&
+                        chunkY ==
+                        snapshotCopy.chunkY &&
                         chunkZ ==
                         snapshotCopy.chunkZ &&
                         snapshotCopy
@@ -1028,13 +1197,15 @@ uint64_t World::submitAsyncMeshBuild(
                             .negativeXNeighbor
                             .getBlock(
                                 localX,
-                                worldY,
+                                localY,
                                 localZ
                             );
                     }
 
                     if (chunkX ==
                         snapshotCopy.chunkX + 1 &&
+                        chunkY ==
+                        snapshotCopy.chunkY &&
                         chunkZ ==
                         snapshotCopy.chunkZ &&
                         snapshotCopy
@@ -1044,13 +1215,51 @@ uint64_t World::submitAsyncMeshBuild(
                             .positiveXNeighbor
                             .getBlock(
                                 localX,
-                                worldY,
+                                localY,
                                 localZ
                             );
                     }
 
                     if (chunkX ==
                         snapshotCopy.chunkX &&
+                        chunkY ==
+                        snapshotCopy.chunkY - 1 &&
+                        chunkZ ==
+                        snapshotCopy.chunkZ &&
+                        snapshotCopy
+                        .hasNegativeYNeighbor)
+                    {
+                        return snapshotCopy
+                            .negativeYNeighbor
+                            .getBlock(
+                                localX,
+                                localY,
+                                localZ
+                            );
+                    }
+
+                    if (chunkX ==
+                        snapshotCopy.chunkX &&
+                        chunkY ==
+                        snapshotCopy.chunkY + 1 &&
+                        chunkZ ==
+                        snapshotCopy.chunkZ &&
+                        snapshotCopy
+                        .hasPositiveYNeighbor)
+                    {
+                        return snapshotCopy
+                            .positiveYNeighbor
+                            .getBlock(
+                                localX,
+                                localY,
+                                localZ
+                            );
+                    }
+
+                    if (chunkX ==
+                        snapshotCopy.chunkX &&
+                        chunkY ==
+                        snapshotCopy.chunkY &&
                         chunkZ ==
                         snapshotCopy.chunkZ - 1 &&
                         snapshotCopy
@@ -1060,13 +1269,15 @@ uint64_t World::submitAsyncMeshBuild(
                             .negativeZNeighbor
                             .getBlock(
                                 localX,
-                                worldY,
+                                localY,
                                 localZ
                             );
                     }
 
                     if (chunkX ==
                         snapshotCopy.chunkX &&
+                        chunkY ==
+                        snapshotCopy.chunkY &&
                         chunkZ ==
                         snapshotCopy.chunkZ + 1 &&
                         snapshotCopy
@@ -1076,7 +1287,7 @@ uint64_t World::submitAsyncMeshBuild(
                             .positiveZNeighbor
                             .getBlock(
                                 localX,
-                                worldY,
+                                localY,
                                 localZ
                             );
                     }
@@ -1121,6 +1332,7 @@ void World::processCompletedChunkLoads(
         ChunkRenderData* data =
             m_chunkManager.findChunk(
                 result->chunkX,
+                result->chunkY,
                 result->chunkZ
             );
 
@@ -1141,10 +1353,11 @@ void World::processCompletedChunkLoads(
         data->streamingState =
             ChunkStreamingState::Loaded;
 
-        data->streamingState =
-            ChunkStreamingState::MeshQueued;
-
-        data->chunk.markMeshDirty();
+        markChunkAndNeighborsDirty(
+            result->chunkX,
+            result->chunkY,
+            result->chunkZ
+        );
 
         processedResults++;
     }
@@ -1170,6 +1383,7 @@ void World::processCompletedMeshBuilds(
         ChunkRenderData* data =
             m_chunkManager.findChunk(
                 result->chunkX,
+                result->chunkY,
                 result->chunkZ
             );
 
@@ -1192,6 +1406,7 @@ void World::processCompletedMeshBuilds(
 
         m_chunkManager.setChunkState(
             result->chunkX,
+            result->chunkY,
             result->chunkZ,
             ChunkStreamingState::MeshReadyForUpload
         );
@@ -1202,6 +1417,7 @@ void World::processCompletedMeshBuilds(
                 ChunkCoord
                 {
                     result->chunkX,
+                    result->chunkY,
                     result->chunkZ
                 }
             );
@@ -1222,6 +1438,9 @@ ChunkMeshBuildSnapshot World::createMeshBuildSnapshot(
     snapshot.chunkX =
         data.chunkX;
 
+    snapshot.chunkY =
+        data.chunkY;
+
     snapshot.chunkZ =
         data.chunkZ;
 
@@ -1231,6 +1450,7 @@ ChunkMeshBuildSnapshot World::createMeshBuildSnapshot(
     if (const ChunkRenderData* neighbor =
         m_chunkManager.findChunk(
             data.chunkX - 1,
+            data.chunkY,
             data.chunkZ
         ))
     {
@@ -1242,6 +1462,7 @@ ChunkMeshBuildSnapshot World::createMeshBuildSnapshot(
     if (const ChunkRenderData* neighbor =
         m_chunkManager.findChunk(
             data.chunkX + 1,
+            data.chunkY,
             data.chunkZ
         ))
     {
@@ -1253,6 +1474,31 @@ ChunkMeshBuildSnapshot World::createMeshBuildSnapshot(
     if (const ChunkRenderData* neighbor =
         m_chunkManager.findChunk(
             data.chunkX,
+            data.chunkY - 1,
+            data.chunkZ
+        ))
+    {
+        snapshot.hasNegativeYNeighbor = true;
+        snapshot.negativeYNeighbor =
+            neighbor->chunk;
+    }
+
+    if (const ChunkRenderData* neighbor =
+        m_chunkManager.findChunk(
+            data.chunkX,
+            data.chunkY + 1,
+            data.chunkZ
+        ))
+    {
+        snapshot.hasPositiveYNeighbor = true;
+        snapshot.positiveYNeighbor =
+            neighbor->chunk;
+    }
+
+    if (const ChunkRenderData* neighbor =
+        m_chunkManager.findChunk(
+            data.chunkX,
+            data.chunkY,
             data.chunkZ - 1
         ))
     {
@@ -1264,6 +1510,7 @@ ChunkMeshBuildSnapshot World::createMeshBuildSnapshot(
     if (const ChunkRenderData* neighbor =
         m_chunkManager.findChunk(
             data.chunkX,
+            data.chunkY,
             data.chunkZ + 1
         ))
     {
@@ -1288,6 +1535,7 @@ void World::saveWorld()
         if (m_saveManager.saveChunk(
             data.chunk,
             data.chunkX,
+            data.chunkY,
             data.chunkZ
         ))
         {

@@ -13,6 +13,15 @@ struct BlockRenderInfo
     float topTextureIndex = 0.0f;
     float bottomTextureIndex = 0.0f;
 
+    bool tinted = false;
+
+    glm::vec3 tintColor =
+    {
+        1.0f,
+        1.0f,
+        1.0f
+    };
+
     glm::vec3 guiRotation =
     {
         -28.0f,
@@ -46,6 +55,17 @@ public:
         int z,
         uint16_t blockId
     );
+
+    void setGeneratedBlock(
+        int x,
+        int y,
+        int z,
+        uint16_t blockId
+    );
+
+    bool isEmpty() const;
+
+    bool shouldSaveIfEmpty() const;
 
     const std::vector<uint16_t>&
         getBlocks() const;
@@ -86,4 +106,6 @@ private:
     bool m_meshDirty = true;
 
     bool m_saveDirty = false;
+
+    bool m_shouldSaveIfEmpty = false;
 };

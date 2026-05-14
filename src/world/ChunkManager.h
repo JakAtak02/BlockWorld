@@ -46,6 +46,7 @@ struct ChunkRenderData
     bool meshBuildInProgress = false;
 
     int chunkX = 0;
+    int chunkY = 0;
     int chunkZ = 0;
 
     glm::vec3 minBounds;
@@ -62,16 +63,19 @@ public:
 
     ChunkRenderData* findChunk(
         int chunkX,
+        int chunkY,
         int chunkZ
     );
 
     const ChunkRenderData* findChunk(
         int chunkX,
+        int chunkY,
         int chunkZ
     ) const;
 
     ChunkRenderData* getOrCreateChunk(
         int chunkX,
+        int chunkY,
         int chunkZ,
         TerrainGenerator& terrainGenerator,
         WorldSaveManager& saveManager
@@ -98,6 +102,7 @@ public:
 
     void setChunkState(
         int chunkX,
+        int chunkY,
         int chunkZ,
         ChunkStreamingState state
     );
@@ -119,18 +124,28 @@ public:
 private:
     void createOrLoadChunk(
         int chunkX,
+        int chunkY,
         int chunkZ,
         TerrainGenerator& terrainGenerator,
         WorldSaveManager& saveManager
     );
 
+    std::vector<int> getChunkYsToLoadForColumn(
+        int chunkX,
+        int chunkZ,
+        TerrainGenerator& terrainGenerator,
+        WorldSaveManager& saveManager
+    ) const;
+
     void enqueueChunkLoad(
         int chunkX,
+        int chunkY,
         int chunkZ
     );
 
     bool isChunkLoadQueued(
         int chunkX,
+        int chunkY,
         int chunkZ
     ) const;
 

@@ -11,6 +11,7 @@ public:
         const Chunk& chunk,
         const std::string& path,
         int chunkX,
+        int chunkY,
         int chunkZ
     );
 

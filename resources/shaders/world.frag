@@ -2,6 +2,7 @@
 
 in vec2 vTexCoord;
 in vec3 vWorldPosition;
+in vec3 vTintColor;
 flat in float vTextureIndex;
 
 uniform sampler2DArray uTextureArray;
@@ -21,6 +22,26 @@ void main()
             vec3(vTexCoord, vTextureIndex)
         );
 
+    float tintMask =
+    max(
+        max(textureColor.r, textureColor.g),
+        textureColor.b
+    );
+
+tintMask =
+    smoothstep(
+        0.25,
+        0.65,
+        tintMask
+    );
+
+vec3 tintedTextureColor =
+    mix(
+        textureColor.rgb,
+        textureColor.rgb * vTintColor,
+        tintMask
+    );
+
     float distanceFromCamera =
         distance(
             vWorldPosition,
@@ -37,7 +58,7 @@ void main()
 
     vec3 finalColor =
         mix(
-            textureColor.rgb,
+            tintedTextureColor,
             uFogColor,
             fogAmount
         );

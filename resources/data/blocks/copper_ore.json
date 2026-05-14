@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:copper_ore",
+  "display_name": "Copper Ore",
+  "texture": "assets/textures/blocks/copper_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

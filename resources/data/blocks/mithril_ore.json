@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:mithril_ore",
+  "display_name": "Mithril Ore",
+  "texture": "assets/textures/blocks/mithril_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

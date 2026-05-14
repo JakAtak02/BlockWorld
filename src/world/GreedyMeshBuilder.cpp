@@ -188,6 +188,7 @@ void GreedyMeshBuilder::addGreedyFaceDirection(
                     width,
                     height,
                     cell.textureIndex,
+                    cell.tintColor,
                     worldPosition
                 );
             }
@@ -313,6 +314,12 @@ GreedyMeshBuilder::Cell GreedyMeshBuilder::getCell(
             renderInfo
         );
 
+    if (blockId <= renderInfo.size())
+    {
+        cell.tintColor =
+            renderInfo[blockId - 1].tintColor;
+    }
+
     return cell;
 }
 
@@ -352,11 +359,12 @@ void GreedyMeshBuilder::addQuad(
     int width,
     int height,
     float textureIndex,
+    const glm::vec3& tintColor,
     const glm::vec3& worldPosition
 )
 {
     auto push =
-        [&vertices, textureIndex](
+        [&vertices, textureIndex, tintColor](
             float px,
             float py,
             float pz,
@@ -372,6 +380,10 @@ void GreedyMeshBuilder::addQuad(
             vertices.push_back(v);
 
             vertices.push_back(textureIndex);
+
+            vertices.push_back(tintColor.r);
+            vertices.push_back(tintColor.g);
+            vertices.push_back(tintColor.b);
         };
 
     float w = static_cast<float>(width);

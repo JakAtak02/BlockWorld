@@ -52,6 +52,17 @@ Mesh::Mesh(const std::vector<float>& vertices)
     );
     glEnableVertexAttribArray(2);
 
+    // layout location 3: vec3 tint color
+    glVertexAttribPointer(
+        3,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        FLOATS_PER_VERTEX * sizeof(float),
+        (void*)(6 * sizeof(float))
+    );
+    glEnableVertexAttribArray(3);
+
     glBindVertexArray(0);
 }
 
@@ -68,4 +79,9 @@ void Mesh::draw() const
 {
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
+}
+
+int Mesh::getVertexCount() const
+{
+    return m_vertexCount;
 }

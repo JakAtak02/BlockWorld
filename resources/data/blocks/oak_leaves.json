@@ -1,0 +1,9 @@
+{
+	"id": "blockworld:oak_leaves",
+	"display_name": "Oak Leaves",
+	"texture": "assets/textures/blocks/oak_leaves.png",
+	"solid": true,
+	"opaque": false,
+	"tinted": true,
+	"model": "resources/data/models/block/cube.json"
+}

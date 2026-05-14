@@ -34,6 +34,13 @@ private:
         bool visible = false;
         uint16_t blockId = 0;
         float textureIndex = 0.0f;
+
+        glm::vec3 tintColor =
+        {
+            1.0f,
+            1.0f,
+            1.0f
+        };
     };
 
 private:
@@ -72,6 +79,7 @@ private:
         int width,
         int height,
         float textureIndex,
+        const glm::vec3& tintColor,
         const glm::vec3& worldPosition
     );
 };

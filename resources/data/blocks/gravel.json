@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:gravel",
+  "display_name": "Gravel",
+  "texture": "assets/textures/blocks/gravel.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "blockworld:flowing_water",
+  "display_name": "Flowing Water",
+  "texture": "assets/textures/blocks/flowing_water.png",
+  "solid": false,
+  "opaque": false,
+  "tinted": true,
+  "model": "resources/data/models/block/cube.json"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:silver_ore",
+  "display_name": "Silver Ore",
+  "texture": "assets/textures/blocks/silver_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

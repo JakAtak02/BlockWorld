@@ -35,6 +35,14 @@ struct BlockRaycastHit
 class World
 {
 public:
+    static constexpr int VERTICAL_CHUNK_COUNT = 64;
+    static constexpr int WORLD_MIN_Y = 0;
+    static constexpr int WORLD_HEIGHT =
+        Chunk::SIZE * VERTICAL_CHUNK_COUNT;
+    static constexpr int WORLD_MAX_Y =
+        WORLD_MIN_Y + WORLD_HEIGHT - 1;
+
+public:
     World(
         const std::vector<BlockRenderInfo>& renderInfo
     );
@@ -55,6 +63,7 @@ public:
 
     uint64_t submitAsyncChunkLoad(
         int chunkX,
+        int chunkY,
         int chunkZ
     );
 
@@ -113,6 +122,13 @@ private:
 
     void enqueueMeshRebuild(
         int chunkX,
+        int chunkY,
+        int chunkZ
+    );
+
+    void markChunkAndNeighborsDirty(
+        int chunkX,
+        int chunkY,
         int chunkZ
     );
 
@@ -126,6 +142,7 @@ private:
 
     bool isMeshRebuildQueued(
         int chunkX,
+        int chunkY,
         int chunkZ
     ) const;
 

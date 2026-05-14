@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:gold_ore",
+  "display_name": "Gold Ore",
+  "texture": "assets/textures/blocks/gold_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

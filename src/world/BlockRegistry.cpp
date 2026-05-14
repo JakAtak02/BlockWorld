@@ -41,6 +41,8 @@ bool BlockRegistry::loadBlockFromJson(
     block.solid = data.value("solid", true);
     block.opaque = data.value("opaque", true);
 
+    block.tinted = data.value("tinted", false);
+
     if (data.contains("texture"))
     {
         block.texturePath =
@@ -204,14 +206,68 @@ BlockRegistry::buildRenderInfo() const
                 block.numericId - 1
                 );
 
-        renderInfo[index] =
+        glm::vec3 tintColor =
         {
-            block.sideTextureIndex,
-            block.topTextureIndex,
-            block.bottomTextureIndex,
-            block.model.guiRotation,
-            block.model.guiScale
+            1.0f,
+            1.0f,
+            1.0f
         };
+
+        if (block.tinted)
+        {
+            if (block.id == "blockworld:grass_block")
+            {
+                tintColor =
+                {
+                    0.48f,
+                    0.84f,
+                    0.36f
+                };
+            }
+            else if (block.id == "blockworld:oak_leaves")
+            {
+                tintColor =
+                {
+                    0.42f,
+                    0.76f,
+                    0.34f
+                };
+            }
+            else if (block.id == "blockworld:flowing_water")
+            {
+                tintColor =
+                {
+                    0.52f,
+                    0.72f,
+                    0.92f
+                };
+            }
+        }
+
+        BlockRenderInfo info;
+
+        info.sideTextureIndex =
+            block.sideTextureIndex;
+
+        info.topTextureIndex =
+            block.topTextureIndex;
+
+        info.bottomTextureIndex =
+            block.bottomTextureIndex;
+
+        info.tinted =
+            block.tinted;
+
+        info.tintColor =
+            tintColor;
+
+        info.guiRotation =
+            block.model.guiRotation;
+
+        info.guiScale =
+            block.model.guiScale;
+
+        renderInfo[index] = info;
     }
 
     return renderInfo;

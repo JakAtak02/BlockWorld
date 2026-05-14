@@ -5,12 +5,13 @@
 class Mesh
 {
 public:
-    static constexpr int FLOATS_PER_VERTEX = 6;
+    static constexpr int FLOATS_PER_VERTEX = 9;
 
     Mesh(const std::vector<float>& vertices);
     ~Mesh();
 
     void draw() const;
+    int getVertexCount() const;
 
 private:
     unsigned int m_vao = 0;

@@ -15,6 +15,7 @@ enum class AsyncChunkLoadResultType
 struct AsyncChunkLoadResult
 {
     int chunkX = 0;
+    int chunkY = 0;
     int chunkZ = 0;
 
     uint64_t requestId = 0;
@@ -28,6 +29,7 @@ struct AsyncChunkLoadResult
 struct ChunkMeshBuildSnapshot
 {
     int chunkX = 0;
+    int chunkY = 0;
     int chunkZ = 0;
 
     uint64_t requestId = 0;
@@ -36,11 +38,15 @@ struct ChunkMeshBuildSnapshot
 
     bool hasNegativeXNeighbor = false;
     bool hasPositiveXNeighbor = false;
+    bool hasNegativeYNeighbor = false;
+    bool hasPositiveYNeighbor = false;
     bool hasNegativeZNeighbor = false;
     bool hasPositiveZNeighbor = false;
 
     Chunk negativeXNeighbor;
     Chunk positiveXNeighbor;
+    Chunk negativeYNeighbor;
+    Chunk positiveYNeighbor;
     Chunk negativeZNeighbor;
     Chunk positiveZNeighbor;
 };
@@ -48,6 +54,7 @@ struct ChunkMeshBuildSnapshot
 struct AsyncMeshBuildResult
 {
     int chunkX = 0;
+    int chunkY = 0;
     int chunkZ = 0;
 
     uint64_t requestId = 0;

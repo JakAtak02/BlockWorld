@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:ruby_ore",
+  "display_name": "Ruby Ore",
+  "texture": "assets/textures/blocks/ruby_ore.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}

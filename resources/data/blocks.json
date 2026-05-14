@@ -7,6 +7,22 @@
     "resources/data/blocks/cobblestone.json",
     "resources/data/blocks/oak_planks.json",
     "resources/data/blocks/iron_ore.json",
-    "resources/data/blocks/oak_log.json"
+    "resources/data/blocks/oak_log.json",
+
+    "resources/data/blocks/bedrock.json",
+    "resources/data/blocks/gravel.json",
+    "resources/data/blocks/oak_leaves.json",
+    "resources/data/blocks/flowing_water.json",
+    "resources/data/blocks/flowing_lava.json",
+    "resources/data/blocks/gold_ore.json",
+    "resources/data/blocks/silver_ore.json",
+    "resources/data/blocks/coal_ore.json",
+    "resources/data/blocks/copper_ore.json",
+    "resources/data/blocks/tin_ore.json",
+    "resources/data/blocks/diamond_ore.json",
+    "resources/data/blocks/emerald_ore.json",
+    "resources/data/blocks/ruby_ore.json",
+    "resources/data/blocks/sapphire_ore.json",
+    "resources/data/blocks/mithril_ore.json"
   ]
 }

@@ -8,6 +8,7 @@ bool ChunkSerializer::saveChunk(
     const Chunk& chunk,
     const std::string& path,
     int chunkX,
+    int chunkY,
     int chunkZ
 )
 {
@@ -15,6 +16,7 @@ bool ChunkSerializer::saveChunk(
 
     data["version"] = 1;
     data["chunk_x"] = chunkX;
+    data["chunk_y"] = chunkY;
     data["chunk_z"] = chunkZ;
     data["size"] = Chunk::SIZE;
 

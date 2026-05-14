@@ -1,0 +1,8 @@
+{
+  "id": "blockworld:bedrock",
+  "display_name": "Bedrock",
+  "texture": "assets/textures/blocks/bedrock.png",
+  "solid": true,
+  "opaque": true,
+  "model": "resources/data/models/block/cube.json"
+}
