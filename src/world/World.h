@@ -32,6 +32,13 @@ struct BlockRaycastHit
     float distance = 0.0f;
 };
 
+struct WorldDebugMetrics
+{
+    int lastVisibleChunks = 0;
+    int lastDrawnChunks = 0;
+    int lastRenderedVertices = 0;
+};
+
 class World
 {
 public:
@@ -126,6 +133,18 @@ private:
         int chunkZ
     );
 
+    void enqueueChunkMeshIfDirty(
+        int chunkX,
+        int chunkY,
+        int chunkZ
+    );
+
+    void markChunkDirtyOnly(
+        int chunkX,
+        int chunkY,
+        int chunkZ
+    );
+
     void markChunkAndNeighborsDirty(
         int chunkX,
         int chunkY,
@@ -186,6 +205,9 @@ private:
 
     glm::vec3
         m_lastPlayerPosition{ 0.0f };
+
+    mutable WorldDebugMetrics
+        m_debugMetrics;
 
     std::vector<BlockRenderInfo>
         m_renderInfo;

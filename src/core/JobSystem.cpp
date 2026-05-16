@@ -80,6 +80,14 @@ void JobSystem::submit(Job job)
     m_conditionVariable.notify_one();
 }
 
+size_t JobSystem::getPendingJobCount() const
+{
+    std::lock_guard<std::mutex>
+        lock(m_queueMutex);
+
+    return m_jobQueue.size();
+}
+
 void JobSystem::workerLoop()
 {
     while (m_running)

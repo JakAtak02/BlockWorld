@@ -91,21 +91,6 @@ void World::update(
     int meshRebuildBudget =
         calculateMeshRebuildBudget(deltaTime);
 
-    for (auto& [coord, data] :
-        m_chunkManager.getChunks())
-    {
-        if (!data.chunk.isMeshDirty())
-        {
-            continue;
-        }
-
-        enqueueMeshRebuild(
-            coord.x,
-            coord.y,
-            coord.z
-        );
-    }
-
     processMeshRebuildQueue(
         meshRebuildBudget
     );
@@ -253,93 +238,11 @@ void World::setBlock(
         blockId
     );
 
-    data->chunk.markMeshDirty();
-
-    m_chunkManager.setChunkState(
+    markChunkAndNeighborsDirty(
         chunkX,
         chunkY,
-        chunkZ,
-        ChunkStreamingState::MeshQueued
+        chunkZ
     );
-
-    auto markNeighborDirty =
-        [this](
-            int neighborChunkX,
-            int neighborChunkY,
-            int neighborChunkZ
-            )
-        {
-            if (ChunkRenderData* neighbor =
-                m_chunkManager.findChunk(
-                    neighborChunkX,
-                    neighborChunkY,
-                    neighborChunkZ
-                ))
-            {
-                neighbor->chunk.markMeshDirty();
-
-                m_chunkManager.setChunkState(
-                    neighborChunkX,
-                    neighborChunkY,
-                    neighborChunkZ,
-                    ChunkStreamingState::MeshQueued
-                );
-            }
-        };
-
-    if (localX == 0)
-    {
-        markNeighborDirty(
-            chunkX - 1,
-            chunkY,
-            chunkZ
-        );
-    }
-
-    if (localX == Chunk::SIZE - 1)
-    {
-        markNeighborDirty(
-            chunkX + 1,
-            chunkY,
-            chunkZ
-        );
-    }
-
-    if (localY == 0)
-    {
-        markNeighborDirty(
-            chunkX,
-            chunkY - 1,
-            chunkZ
-        );
-    }
-
-    if (localY == Chunk::SIZE - 1)
-    {
-        markNeighborDirty(
-            chunkX,
-            chunkY + 1,
-            chunkZ
-        );
-    }
-
-    if (localZ == 0)
-    {
-        markNeighborDirty(
-            chunkX,
-            chunkY,
-            chunkZ - 1
-        );
-    }
-
-    if (localZ == Chunk::SIZE - 1)
-    {
-        markNeighborDirty(
-            chunkX,
-            chunkY,
-            chunkZ + 1
-        );
-    }
 }
 
 bool World::raycastBlock(
@@ -492,6 +395,10 @@ void World::draw(
     const Frustum& frustum
 ) const
 {
+    int visibleChunks = 0;
+    int drawnChunks = 0;
+    int renderedVertices = 0;
+
     for (const auto& [coord, data] :
         m_chunkManager.getChunks())
     {
@@ -503,554 +410,39 @@ void World::draw(
             continue;
         }
 
+        visibleChunks++;
+
         if (!data.mesh)
         {
             continue;
         }
 
+        drawnChunks++;
+
+        renderedVertices +=
+            data.mesh->getVertexCount();
+
         data.mesh->draw();
     }
+
+    m_debugMetrics.lastVisibleChunks =
+        visibleChunks;
+
+    m_debugMetrics.lastDrawnChunks =
+        drawnChunks;
+
+    m_debugMetrics.lastRenderedVertices =
+        renderedVertices;
 }
 
 void World::drawChunkBorders(
     DebugRenderer& debugRenderer,
-    const glm::mat4& projection,
-    const glm::mat4& view
-) const
-{
-    std::set<std::pair<int, int>> drawnColumns;
 
-    for (const auto& [coord, data] :
-        m_chunkManager.getChunks())
-    {
-        std::pair<int, int> columnKey =
-        {
-            coord.x,
-            coord.z
-        };
-
-        if (drawnColumns.contains(columnKey))
-        {
-            continue;
-        }
-
-        drawnColumns.insert(columnKey);
-
-        glm::vec3 minBounds(
-            static_cast<float>(
-                coord.x * Chunk::SIZE
-                ),
-            static_cast<float>(
-                WORLD_MIN_Y
-                ),
-            static_cast<float>(
-                coord.z * Chunk::SIZE
-                )
-        );
-
-        glm::vec3 maxBounds(
-            minBounds.x + static_cast<float>(Chunk::SIZE),
-            static_cast<float>(WORLD_MAX_Y + 1),
-            minBounds.z + static_cast<float>(Chunk::SIZE)
-        );
-
-        debugRenderer.drawChunkBorder(
-            minBounds,
-            maxBounds,
-            projection,
-            view
-        );
-    }
-}
-
-int World::floorDiv(
-    int value,
-    int divisor
-)
-{
-    int result = value / divisor;
-    int remainder = value % divisor;
-
-    if (remainder != 0 &&
-        ((remainder < 0) !=
-            (divisor < 0)))
-    {
-        result--;
-    }
-
-    return result;
-}
-
-int World::positiveMod(
-    int value,
-    int divisor
-)
-{
-    int result = value % divisor;
-
-    if (result < 0)
-    {
-        result += divisor;
-    }
-
-    return result;
-}
-
-int World::calculateChunkLoadBudget(
-    float deltaTime
-)
-{
-    if (deltaTime <= 0.012f)
-    {
-        return 4;
-    }
-
-    if (deltaTime <= 0.018f)
-    {
-        return 2;
-    }
-
-    return 1;
-}
-
-int World::calculateMeshRebuildBudget(
-    float deltaTime
-)
-{
-    if (deltaTime <= 0.012f)
-    {
-        return 4;
-    }
-
-    if (deltaTime <= 0.018f)
-    {
-        return 2;
-    }
-
-    return 1;
-}
-
-void World::enqueueMeshRebuild(
-    int chunkX,
-    int chunkY,
-    int chunkZ
-)
-{
-    if (isMeshRebuildQueued(
-        chunkX,
-        chunkY,
-        chunkZ
-    ))
-    {
-        return;
-    }
-
-    m_pendingMeshRebuilds.push_back(
-        ChunkCoord
-        {
-            chunkX,
-            chunkY,
-            chunkZ
-        }
-    );
-}
-
-void World::markChunkAndNeighborsDirty(
-    int chunkX,
-    int chunkY,
-    int chunkZ
-)
-{
-    auto markDirty =
-        [this](
-            int targetChunkX,
-            int targetChunkY,
-            int targetChunkZ
-            )
-        {
-            ChunkRenderData* data =
-                m_chunkManager.findChunk(
-                    targetChunkX,
-                    targetChunkY,
-                    targetChunkZ
-                );
-
-            if (!data)
-            {
-                return;
-            }
-
-            data->chunk.markMeshDirty();
-
-            m_chunkManager.setChunkState(
-                targetChunkX,
-                targetChunkY,
-                targetChunkZ,
-                ChunkStreamingState::MeshQueued
-            );
-        };
-
-    markDirty(chunkX, chunkY, chunkZ);
-
-    markDirty(chunkX - 1, chunkY, chunkZ);
-    markDirty(chunkX + 1, chunkY, chunkZ);
-
-    markDirty(chunkX, chunkY - 1, chunkZ);
-    markDirty(chunkX, chunkY + 1, chunkZ);
-
-    markDirty(chunkX, chunkY, chunkZ - 1);
-    markDirty(chunkX, chunkY, chunkZ + 1);
-}
-
-void World::processMeshRebuildQueue(
-    int maxMeshRebuilds
-)
-{
-    int playerChunkX =
-        floorDiv(
-            static_cast<int>(
-                std::floor(
-                    m_lastPlayerPosition.x
-                )
-                ),
-            Chunk::SIZE
-        );
-
-    int playerChunkY =
-        floorDiv(
-            static_cast<int>(
-                std::floor(
-                    m_lastPlayerPosition.y
-                )
-                ),
-            Chunk::SIZE
-        );
-
-    int playerChunkZ =
-        floorDiv(
-            static_cast<int>(
-                std::floor(
-                    m_lastPlayerPosition.z
-                )
-                ),
-            Chunk::SIZE
-        );
-
-    std::sort(
-        m_pendingMeshRebuilds.begin(),
-        m_pendingMeshRebuilds.end(),
-        [playerChunkX, playerChunkY, playerChunkZ](
-            const ChunkCoord& left,
-            const ChunkCoord& right
-            )
-        {
-            int leftDistanceX =
-                left.x - playerChunkX;
-
-            int leftDistanceY =
-                left.y - playerChunkY;
-
-            int leftDistanceZ =
-                left.z - playerChunkZ;
-
-            int rightDistanceX =
-                right.x - playerChunkX;
-
-            int rightDistanceY =
-                right.y - playerChunkY;
-
-            int rightDistanceZ =
-                right.z - playerChunkZ;
-
-            int leftDistanceSquared =
-                leftDistanceX * leftDistanceX +
-                leftDistanceY * leftDistanceY +
-                leftDistanceZ * leftDistanceZ;
-
-            int rightDistanceSquared =
-                rightDistanceX * rightDistanceX +
-                rightDistanceY * rightDistanceY +
-                rightDistanceZ * rightDistanceZ;
-
-            return leftDistanceSquared <
-                rightDistanceSquared;
-        }
-    );
-
-    int meshesRebuilt = 0;
-
-    while (!m_pendingMeshRebuilds.empty() &&
-        meshesRebuilt < maxMeshRebuilds)
-    {
-        ChunkCoord coord =
-            m_pendingMeshRebuilds.front();
-
-        m_pendingMeshRebuilds.pop_front();
-
-        ChunkRenderData* data =
-            m_chunkManager.findChunk(
-                coord.x,
-                coord.y,
-                coord.z
-            );
-
-        if (!data)
-        {
-            continue;
-        }
-
-        if (!data->chunk.isMeshDirty())
-        {
-            continue;
-        }
-
-        if (data->meshBuildInProgress)
-        {
-            continue;
-        }
-
-        if (data->chunk.isEmpty())
-        {
-            data->mesh.reset();
-            data->pendingMeshVertices.clear();
-            data->meshUploadQueued = false;
-
-            data->chunk.clearMeshDirty();
-
-            m_chunkManager.setChunkState(
-                coord.x,
-                coord.y,
-                coord.z,
-                ChunkStreamingState::ReadyToRender
-            );
-
-            continue;
-        }
-
-        m_chunkManager.setChunkState(
-            coord.x,
-            coord.y,
-            coord.z,
-            ChunkStreamingState::Meshing
-        );
-
-        ChunkMeshBuildSnapshot snapshot =
-            createMeshBuildSnapshot(*data);
-
-        data->activeMeshRequestId =
-            submitAsyncMeshBuild(
-                snapshot
-            );
-
-        data->meshBuildInProgress = true;
-
-        data->chunk.clearMeshDirty();
-
-        meshesRebuilt++;
-    }
-}
-
-void World::processMeshUploadQueue(
-    int maxMeshUploads
-)
-{
-    int uploadsProcessed = 0;
-
-    while (!m_pendingMeshUploads.empty() &&
-        uploadsProcessed < maxMeshUploads)
-    {
-        ChunkCoord coord =
-            m_pendingMeshUploads.front();
-
-        m_pendingMeshUploads.pop_front();
-
-        ChunkRenderData* data =
-            m_chunkManager.findChunk(
-                coord.x,
-                coord.y,
-                coord.z
-            );
-
-        if (!data)
-        {
-            continue;
-        }
-
-        if (!data->pendingMeshVertices.empty())
-        {
-            data->mesh =
-                std::make_unique<Mesh>(
-                    data->pendingMeshVertices
-                );
-        }
-        else
-        {
-            data->mesh.reset();
-        }
-
-        data->pendingMeshVertices.clear();
-
-        data->meshUploadQueued = false;
-
-        m_chunkManager.setChunkState(
-            coord.x,
-            coord.y,
-            coord.z,
-            ChunkStreamingState::ReadyToRender
-        );
-
-        uploadsProcessed++;
-    }
-}
-
-bool World::isMeshRebuildQueued(
-    int chunkX,
-    int chunkY,
-    int chunkZ
-) const
-{
-    for (const ChunkCoord& coord :
-        m_pendingMeshRebuilds)
-    {
-        if (coord.x == chunkX &&
-            coord.y == chunkY &&
-            coord.z == chunkZ)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-void World::rebuildChunkMesh(
-    ChunkRenderData& data
-)
-{
-    glm::vec3 worldPosition(
-        static_cast<float>(
-            data.chunkX * Chunk::SIZE
-            ),
-        static_cast<float>(
-            data.chunkY * Chunk::SIZE
-            ),
-        static_cast<float>(
-            data.chunkZ * Chunk::SIZE
-            )
-    );
-
-    Chunk::BlockLookupFunction blockLookup =
-        [this](
-            int worldX,
-            int worldY,
-            int worldZ
-            ) -> uint16_t
-        {
-            return getBlock(
-                worldX,
-                worldY,
-                worldZ
-            );
-        };
-
-    data.pendingMeshVertices =
-        data.chunk.buildMesh(
-            m_renderInfo,
-            worldPosition,
-            blockLookup
-        );
-}
-
-void World::printStreamingDebugStats() const
-{
-    int loadingCount = 0;
-    int loadedCount = 0;
-    int meshQueuedCount = 0;
-    int meshingCount = 0;
-    int meshReadyForUploadCount = 0;
-    int readyToRenderCount = 0;
-    int unloadPendingCount = 0;
-
-    int totalChunks = 0;
-
-    for (const auto& [coord, data] :
-        m_chunkManager.getChunks())
-    {
-        totalChunks++;
-
-        switch (data.streamingState)
-        {
-        case ChunkStreamingState::Loading:
-            loadingCount++;
-            break;
-
-        case ChunkStreamingState::Loaded:
-            loadedCount++;
-            break;
-
-        case ChunkStreamingState::MeshQueued:
-            meshQueuedCount++;
-            break;
-
-        case ChunkStreamingState::Meshing:
-            meshingCount++;
-            break;
-
-        case ChunkStreamingState::MeshReadyForUpload:
-            meshReadyForUploadCount++;
-            break;
-
-        case ChunkStreamingState::ReadyToRender:
-            readyToRenderCount++;
-            break;
-
-        case ChunkStreamingState::UnloadPending:
-            unloadPendingCount++;
-            break;
-
-        default:
-            break;
-        }
-    }
-
-    std::cout
-        << "\n========== STREAMING DEBUG =========="
-        << "\nTotal Chunks: "
-        << totalChunks
-
-        << "\nPending Queue: "
-        << m_chunkManager.getPendingChunkLoadCount()
-
-        << "\nLoading: "
-        << loadingCount
-
-        << "\nLoaded: "
-        << loadedCount
-
-        << "\nMeshQueued: "
-        << meshQueuedCount
-
-        << "\nMeshing: "
-        << meshingCount
-
-        << "\nMeshReadyForUpload: "
-        << meshReadyForUploadCount
-
-        << "\nReadyToRender: "
-        << readyToRenderCount
-
-        << "\nUnloadPending: "
-        << unloadPendingCount
-
-        << "\n===================================="
-        << std::endl;
-}
-
-uint64_t World::submitAsyncChunkLoad(
-    int chunkX,
-    int chunkY,
-    int chunkZ
-)
+    uint64_t World::submitAsyncChunkLoad(
+        int chunkX,
+        int chunkY,
+        int chunkZ
+    )
 {
     uint64_t requestId =
         m_nextChunkRequestId++;
@@ -1353,7 +745,7 @@ void World::processCompletedChunkLoads(
         data->streamingState =
             ChunkStreamingState::Loaded;
 
-        markChunkAndNeighborsDirty(
+        markChunkDirtyOnly(
             result->chunkX,
             result->chunkY,
             result->chunkZ

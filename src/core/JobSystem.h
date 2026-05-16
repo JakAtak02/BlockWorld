@@ -7,6 +7,7 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <cstddef>
 
 class JobSystem
 {
@@ -26,6 +27,8 @@ public:
 
     void submit(Job job);
 
+    size_t getPendingJobCount() const;
+
 private:
     void workerLoop();
 
@@ -36,7 +39,7 @@ private:
     std::queue<Job>
         m_jobQueue;
 
-    std::mutex m_queueMutex;
+    mutable std::mutex m_queueMutex;
 
     std::condition_variable
         m_conditionVariable;
