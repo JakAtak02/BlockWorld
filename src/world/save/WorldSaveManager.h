@@ -12,6 +12,9 @@
 class WorldSaveManager
 {
 public:
+    static constexpr int REGION_SIZE = 32;
+
+public:
     WorldSaveManager(
         const std::string& worldName,
         uint32_t worldVersion,
@@ -74,10 +77,19 @@ private:
 private:
     std::string getWorldSavePath() const;
 
+    std::string getRegionDirectoryPath(
+        int regionX,
+        int regionZ
+    ) const;
+
     std::string getChunkSavePath(
         int chunkX,
         int chunkY,
         int chunkZ
+    ) const;
+
+    int chunkToRegionCoord(
+        int chunkCoordinate
     ) const;
 
     bool worldMetadataExists() const;

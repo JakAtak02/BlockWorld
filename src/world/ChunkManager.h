@@ -53,6 +53,17 @@ struct ChunkRenderData
     glm::vec3 maxBounds;
 };
 
+struct LoadedChunkColumn
+{
+    int chunkX = 0;
+    int chunkZ = 0;
+
+    bool gameplayLoaded = false;
+
+    std::vector<int>
+        loadedVerticalSections;
+};
+
 class ChunkManager
 {
 public:
@@ -107,6 +118,12 @@ public:
         ChunkStreamingState state
     );
 
+    void releaseChunkMesh(
+        int chunkX,
+        int chunkY,
+        int chunkZ
+    );
+
     size_t getPendingChunkLoadCount() const;
 
     std::unordered_map<
@@ -153,6 +170,12 @@ private:
         float worldCoordinate
     );
 
+    void registerChunkColumnSection(
+        int chunkX,
+        int chunkY,
+        int chunkZ
+    );
+
 private:
     std::unordered_map<
         ChunkCoord,
@@ -162,4 +185,11 @@ private:
 
     std::deque<ChunkCoord>
         m_pendingChunkLoads;
+
+    std::unordered_map<
+        ChunkColumnCoord,
+        LoadedChunkColumn,
+        ChunkColumnCoordHash
+    > m_loadedColumns;
+
 };

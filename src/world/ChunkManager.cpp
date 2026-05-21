@@ -128,6 +128,12 @@ void ChunkManager::createOrLoadChunk(
         coord,
         std::move(data)
     );
+
+    registerChunkColumnSection(
+        chunkX,
+        chunkY,
+        chunkZ
+    );
 }
 
 ChunkRenderData* ChunkManager::findChunk(
@@ -525,6 +531,12 @@ void ChunkManager::processChunkLoadQueue(
             std::move(placeholder)
         );
 
+        registerChunkColumnSection(
+            coord.x,
+            coord.y,
+            coord.z
+        );
+
         chunksSubmitted++;
     }
 }
@@ -594,6 +606,12 @@ void ChunkManager::unloadChunksFarFromPosition(
                 data.chunk.clearSaveDirty();
             }
         }
+
+        releaseChunkMesh(
+            data.chunkX,
+            data.chunkY,
+            data.chunkZ
+        );
 
         m_chunks.erase(it);
     }
@@ -695,6 +713,35 @@ void ChunkManager::setChunkState(
     data->streamingState = state;
 }
 
+void ChunkManager::releaseChunkMesh(
+    int chunkX,
+    int chunkY,
+    int chunkZ
+)
+{
+    ChunkRenderData* data =
+        findChunk(
+            chunkX,
+            chunkY,
+            chunkZ
+        );
+
+    if (!data)
+    {
+        return;
+    }
+
+    data->mesh.reset();
+
+    data->pendingMeshVertices.clear();
+
+    data->meshUploadQueued = false;
+
+    data->meshBuildInProgress = false;
+
+    data->activeMeshRequestId = 0;
+}
+
 size_t ChunkManager::getPendingChunkLoadCount() const
 {
     return m_pendingChunkLoads.size();
@@ -712,6 +759,39 @@ int ChunkManager::worldToChunkCoord(
                 )
         )
         );
+}
+
+void ChunkManager::registerChunkColumnSection(
+    int chunkX,
+    int chunkY,
+    int chunkZ
+)
+{
+    ChunkColumnCoord coord
+    {
+        chunkX,
+        chunkZ
+    };
+
+    LoadedChunkColumn& column =
+        m_loadedColumns[coord];
+
+    column.chunkX = chunkX;
+    column.chunkZ = chunkZ;
+
+    column.gameplayLoaded = true;
+
+    if (std::find(
+        column.loadedVerticalSections.begin(),
+        column.loadedVerticalSections.end(),
+        chunkY
+    ) ==
+        column.loadedVerticalSections.end())
+    {
+        column.loadedVerticalSections.push_back(
+            chunkY
+        );
+    }
 }
 
 std::unordered_map<

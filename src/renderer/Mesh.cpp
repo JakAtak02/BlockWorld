@@ -6,6 +6,9 @@ Mesh::Mesh(const std::vector<float>& vertices)
 {
     m_vertexCount = static_cast<int>(vertices.size() / FLOATS_PER_VERTEX);
 
+    m_estimatedMemoryUsage =
+        vertices.size() * sizeof(float);
+
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);
 
@@ -84,4 +87,9 @@ void Mesh::draw() const
 int Mesh::getVertexCount() const
 {
     return m_vertexCount;
+}
+
+size_t Mesh::getEstimatedMemoryUsage() const
+{
+    return m_estimatedMemoryUsage;
 }

@@ -35,7 +35,13 @@ struct BlockRaycastHit
 struct WorldDebugMetrics
 {
     int lastVisibleChunks = 0;
+
+    int lastOccludedChunks = 0;
+
+    int lastLODRejectedChunks = 0;
+
     int lastDrawnChunks = 0;
+
     int lastRenderedVertices = 0;
 };
 
@@ -163,6 +169,16 @@ private:
         int chunkX,
         int chunkY,
         int chunkZ
+    ) const;
+
+    bool isChunkOccluded(
+        const ChunkRenderData& chunkData,
+        const glm::vec3& cameraPosition
+    ) const;
+
+    bool shouldRenderChunkLOD(
+        const ChunkRenderData& chunkData,
+        const glm::vec3& cameraPosition
     ) const;
 
     void processCompletedChunkLoads(

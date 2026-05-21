@@ -12,9 +12,11 @@ public:
 
     void draw() const;
     int getVertexCount() const;
+    size_t getEstimatedMemoryUsage() const;
 
 private:
     unsigned int m_vao = 0;
     unsigned int m_vbo = 0;
     int m_vertexCount = 0;
+    size_t m_estimatedMemoryUsage = 0;
 };

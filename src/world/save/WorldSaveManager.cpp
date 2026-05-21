@@ -25,7 +25,7 @@ void WorldSaveManager::initialize()
     namespace fs = std::filesystem;
 
     fs::create_directories(
-        getWorldSavePath() + "/chunks"
+        getWorldSavePath() + "/regions"
     );
 
     if (!worldMetadataExists())
@@ -64,6 +64,21 @@ bool WorldSaveManager::saveChunk(
     {
         return true;
     }
+
+    namespace fs = std::filesystem;
+
+    int regionX =
+        chunkToRegionCoord(chunkX);
+
+    int regionZ =
+        chunkToRegionCoord(chunkZ);
+
+    fs::create_directories(
+        getRegionDirectoryPath(
+            regionX,
+            regionZ
+        )
+    );
 
     bool success =
         ChunkSerializer::saveChunk(
@@ -129,26 +144,43 @@ std::vector<int> WorldSaveManager::getSavedChunkYs(
 
     std::vector<int> chunkYs;
 
-    fs::path chunksPath =
-        getWorldSavePath() + "/chunks";
+    int regionX =
+        chunkToRegionCoord(chunkX);
 
-    if (!fs::exists(chunksPath))
+    int regionZ =
+        chunkToRegionCoord(chunkZ);
+
+    int localChunkX =
+        chunkX -
+        (regionX * REGION_SIZE);
+
+    int localChunkZ =
+        chunkZ -
+        (regionZ * REGION_SIZE);
+
+    fs::path regionPath =
+        getRegionDirectoryPath(
+            regionX,
+            regionZ
+        );
+
+    if (!fs::exists(regionPath))
     {
         return chunkYs;
     }
 
     std::string filenamePrefix =
         "chunk_" +
-        std::to_string(chunkX) +
+        std::to_string(localChunkX) +
         "_";
 
     std::string filenameSuffix =
         "_" +
-        std::to_string(chunkZ) +
+        std::to_string(localChunkZ) +
         ".json";
 
     for (const auto& entry :
-        fs::directory_iterator(chunksPath))
+        fs::directory_iterator(regionPath))
     {
         if (!entry.is_regular_file())
         {
@@ -201,6 +233,35 @@ std::vector<int> WorldSaveManager::getSavedChunkYs(
     return chunkYs;
 }
 
+int WorldSaveManager::chunkToRegionCoord(
+    int chunkCoordinate
+) const
+{
+    if (chunkCoordinate >= 0)
+    {
+        return chunkCoordinate / REGION_SIZE;
+    }
+
+    return ((chunkCoordinate + 1) / REGION_SIZE) - 1;
+}
+
+std::string WorldSaveManager::getRegionDirectoryPath(
+    int regionX,
+    int regionZ
+) const
+{
+    std::stringstream stream;
+
+    stream
+        << getWorldSavePath()
+        << "/regions/region_"
+        << regionX
+        << "_"
+        << regionZ;
+
+    return stream.str();
+}
+
 std::string WorldSaveManager::getWorldSavePath() const
 {
     return "saves/" + m_worldName;
@@ -212,16 +273,31 @@ std::string WorldSaveManager::getChunkSavePath(
     int chunkZ
 ) const
 {
+    int regionX =
+        chunkToRegionCoord(chunkX);
+
+    int regionZ =
+        chunkToRegionCoord(chunkZ);
+
+    int localChunkX =
+        chunkX - regionX * REGION_SIZE;
+
+    int localChunkZ =
+        chunkZ - regionZ * REGION_SIZE;
+
     std::stringstream stream;
 
     stream
-        << getWorldSavePath()
-        << "/chunks/chunk_"
-        << chunkX
+        << getRegionDirectoryPath(
+            regionX,
+            regionZ
+        )
+        << "/chunk_"
+        << localChunkX
         << "_"
         << chunkY
         << "_"
-        << chunkZ
+        << localChunkZ
         << ".json";
 
     return stream.str();
